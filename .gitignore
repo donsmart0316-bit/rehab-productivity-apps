@@ -28,7 +28,6 @@ Productivity & Recovery/logs/
 
 # Large/private source assets
 Exercise recommender/textbooks/
-Exercise recommender/textbook_vectorstore/
 Productivity & Recovery/kaggle data/
 Productivity & Recovery/*.csv
 
