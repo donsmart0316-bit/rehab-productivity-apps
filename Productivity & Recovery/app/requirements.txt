@@ -1,0 +1,16 @@
+pandas
+numpy
+matplotlib
+seaborn
+scikit-learn
+kaggle
+nbformat
+jupyter
+streamlit
+plotly
+joblib
+xgboost
+shap
+langchain
+langchain-groq
+reportlab
