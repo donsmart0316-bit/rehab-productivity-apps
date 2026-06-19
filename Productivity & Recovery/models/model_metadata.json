@@ -1,0 +1,68 @@
+{
+  "random_state": 42,
+  "train_rows": 20000,
+  "test_rows": 77385,
+  "test_fraction": 0.2,
+  "split_strategy": "Chronological holdout plus TimeSeriesSplit for tuning",
+  "best_scaler": "minmax",
+  "best_encoder": "onehot",
+  "feature_spec": {
+    "numerical_features": [
+      "sleep_need",
+      "sleep_hours",
+      "sleep_quality",
+      "sleep_deficit",
+      "sleep_debt",
+      "energy_level",
+      "mood_score",
+      "stress_level",
+      "fatigue_score",
+      "activity_minutes",
+      "work_hours",
+      "meeting_hours",
+      "task_count",
+      "task_complexity",
+      "task_load_score",
+      "cumulative_load",
+      "recovery_score",
+      "is_weekend"
+    ],
+    "categorical_features": [
+      "chronotype",
+      "day_of_week",
+      "source_dataset"
+    ],
+    "excluded_features": [
+      "user_id",
+      "date",
+      "productivity_score",
+      "burnout_score",
+      "burnout_risk",
+      "burnout_score_diagnostic",
+      "burnout_risk_diagnostic",
+      "hourly_productivity",
+      "hourly_energy",
+      "focus_score",
+      "cognitive_capacity",
+      "recommended_task_type",
+      "circadian_phase",
+      "time_of_day_bin",
+      "chronotype_proxy",
+      "productivity_trend",
+      "burnout_momentum"
+    ]
+  },
+  "xgboost_available": true,
+  "shap_available": true,
+  "class_distribution_train": {
+    "Medium": 15725,
+    "High": 2999,
+    "Low": 1276
+  },
+  "leakage_controls": [
+    "Excluded target columns from features.",
+    "Excluded productivity_trend and burnout_momentum from model features because they are target-derived current-period signals.",
+    "Used chronological train/test split and TimeSeriesSplit cross-validation.",
+    "Kept sleep_debt and cumulative_load because they are rolling features available up to the prediction date."
+  ]
+}

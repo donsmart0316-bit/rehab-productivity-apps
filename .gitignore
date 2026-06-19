@@ -1,0 +1,40 @@
+# Python/runtime
+__pycache__/
+*.py[cod]
+*.log
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local environments and secrets
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Databases and user uploads
+*.db
+*.sqlite
+*.sqlite3
+uploads/
+physio-tele-rehab/backend/uploads/
+
+# Generated user/app state
+Exercise recommender/saved_plans.json
+Exercise recommender/Rehab_plan.pdf
+Productivity & Recovery/data/history/
+Productivity & Recovery/data/feedback/
+Productivity & Recovery/logs/
+
+# Large/private source assets
+Exercise recommender/textbooks/
+Exercise recommender/textbook_vectorstore/
+Productivity & Recovery/kaggle data/
+Productivity & Recovery/*.csv
+
+# Local IDE/system files
+.vscode/
+.idea/
+~$*
+Thumbs.db
+.DS_Store

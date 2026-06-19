@@ -1,0 +1,28 @@
+# Data Dictionary
+
+- `user_id`: Stable anonymized user identifier.
+- `date`: Daily record date.
+- `chronotype`: Morning, Intermediate, or Evening productivity timing profile.
+- `sleep_need`: Estimated individual sleep requirement in hours.
+- `sleep_hours`: Total sleep duration for the previous night, hours.
+- `sleep_quality`: Sleep quality on a 0-10 scale.
+- `sleep_deficit`: Daily sleep shortfall relative to sleep need.
+- `sleep_debt`: Rolling sleep deficit over the recent window.
+- `energy_level`: Perceived energy on a 0-10 scale.
+- `mood_score`: Mood on a 0-10 scale.
+- `stress_level`: Stress on a 0-10 scale.
+- `fatigue_score`: Fatigue on a 0-10 scale.
+- `activity_minutes`: Daily physical activity minutes.
+- `work_hours`: Daily working hours.
+- `meeting_hours`: Daily meeting hours.
+- `task_count`: Number of planned or completed work tasks.
+- `task_complexity`: Average task complexity on a 0-10 scale.
+- `task_load_score`: Combined workload pressure score from task count, work hours, meetings, and complexity.
+- `cumulative_load`: Rolling workload over the recent window.
+- `productivity_score`: Productivity outcome score on a 0-100 scale.
+- `productivity_trend`: Rolling productivity change rate.
+- `burnout_score`: Burnout risk/severity score on a 0-100 scale.
+- `burnout_momentum`: Rolling burnout change rate.
+- `recovery_score`: Recovery capacity score on a 0-100 scale.
+- `day_of_week`: Calendar day name.
+- `is_weekend`: Weekend indicator, 1 for Saturday/Sunday and 0 otherwise.

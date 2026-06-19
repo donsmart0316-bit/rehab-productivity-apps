@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+textbook_vectorstore/
+textbooks/
+saved_plans.json
+Rehab_plan.pdf
+*.log
+.streamlit/secrets.toml
+~$*

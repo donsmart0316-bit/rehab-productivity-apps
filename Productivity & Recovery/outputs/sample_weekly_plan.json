@@ -1,0 +1,1143 @@
+{
+  "user_id": "sample_user_001",
+  "week_start": "2026-06-16",
+  "recommended_mode": "primary",
+  "daily_plan_options": {
+    "primary": {
+      "plan_type": "primary",
+      "user_id": "sample_user_001",
+      "date": "2026-06-16",
+      "summary": "Primary plan using 90 min focus + 15 min recovery with moderate recovery status and medium burnout risk.",
+      "focus_blocks": [
+        {
+          "start": "08:00",
+          "end": "09:00",
+          "item_type": "task",
+          "title": "Learning block: LangChain prompt patterns",
+          "reason": "Placed in a morning window with cognitive capacity 52.98.",
+          "energy_window": "Admin Tasks",
+          "task_category": "Learning"
+        },
+        {
+          "start": "09:00",
+          "end": "10:30",
+          "item_type": "task",
+          "title": "Research recommendation strategy",
+          "reason": "Placed in a morning window with cognitive capacity 55.9.",
+          "energy_window": "Admin Tasks",
+          "task_category": "Deep Work"
+        },
+        {
+          "start": "11:00",
+          "end": "12:30",
+          "item_type": "task",
+          "title": "Write model evaluation memo",
+          "reason": "Placed in a midday window with cognitive capacity 61.73.",
+          "energy_window": "Meetings",
+          "task_category": "Deep Work"
+        }
+      ],
+      "breaks": [
+        {
+          "start": "10:30",
+          "end": "10:45",
+          "item_type": "break",
+          "title": "Recovery Break",
+          "reason": "Ultradian rhythm support after a 90-minute work block.",
+          "energy_window": null,
+          "task_category": null
+        },
+        {
+          "start": "12:30",
+          "end": "12:45",
+          "item_type": "break",
+          "title": "Recovery Break",
+          "reason": "Ultradian rhythm support after a 90-minute work block.",
+          "energy_window": null,
+          "task_category": null
+        }
+      ],
+      "recovery_interventions": [
+        {
+          "type": "Posture Reset",
+          "frequency_minutes": 45,
+          "details": "Stand tall, reset shoulder blades, gently tuck chin, breathe slowly for 5 cycles."
+        },
+        {
+          "type": "20-20-20 Eye Strain Rule",
+          "frequency_minutes": 20,
+          "details": "Every 20 minutes, look 20 feet away for 20 seconds."
+        },
+        {
+          "type": "Mobility Break",
+          "frequency": "every 90 minutes",
+          "details": "Alternate neck mobility, thoracic extension, lumbar mobility, and a short walk."
+        },
+        {
+          "type": "Screen Load Reduction",
+          "frequency": "midday and late afternoon",
+          "details": "Batch screen-heavy tasks, dim glare, and use an off-screen planning break."
+        }
+      ],
+      "schedule": [
+        {
+          "start": "08:00",
+          "end": "09:00",
+          "item_type": "task",
+          "title": "Learning block: LangChain prompt patterns",
+          "reason": "Placed in a morning window with cognitive capacity 52.98.",
+          "energy_window": "Admin Tasks",
+          "task_category": "Learning"
+        },
+        {
+          "start": "09:00",
+          "end": "10:30",
+          "item_type": "task",
+          "title": "Research recommendation strategy",
+          "reason": "Placed in a morning window with cognitive capacity 55.9.",
+          "energy_window": "Admin Tasks",
+          "task_category": "Deep Work"
+        },
+        {
+          "start": "10:30",
+          "end": "10:45",
+          "item_type": "break",
+          "title": "Recovery Break",
+          "reason": "Ultradian rhythm support after a 90-minute work block.",
+          "energy_window": null,
+          "task_category": null
+        },
+        {
+          "start": "11:00",
+          "end": "12:30",
+          "item_type": "task",
+          "title": "Write model evaluation memo",
+          "reason": "Placed in a midday window with cognitive capacity 61.73.",
+          "energy_window": "Meetings",
+          "task_category": "Deep Work"
+        },
+        {
+          "start": "12:30",
+          "end": "12:45",
+          "item_type": "break",
+          "title": "Recovery Break",
+          "reason": "Ultradian rhythm support after a 90-minute work block.",
+          "energy_window": null,
+          "task_category": null
+        },
+        {
+          "start": "13:00",
+          "end": "13:45",
+          "item_type": "task",
+          "title": "Team planning meeting",
+          "reason": "Placed in a midday window with cognitive capacity 55.88.",
+          "energy_window": "Meetings",
+          "task_category": "Meetings"
+        },
+        {
+          "start": "14:00",
+          "end": "15:00",
+          "item_type": "task",
+          "title": "Review dashboard metrics",
+          "reason": "Placed in a midday window with cognitive capacity 53.37.",
+          "energy_window": "Meetings",
+          "task_category": "Meetings"
+        },
+        {
+          "start": "16:00",
+          "end": "16:40",
+          "item_type": "task",
+          "title": "Email and admin follow-up",
+          "reason": "Placed in a afternoon window with cognitive capacity 52.98.",
+          "energy_window": "Admin Tasks",
+          "task_category": "Administrative Work"
+        }
+      ],
+      "rule_outputs": {
+        "circadian_profile": [
+          {
+            "hour": 0,
+            "circadian_phase": "Night",
+            "hourly_energy": 1.23,
+            "hourly_productivity": 20.19,
+            "focus_score": 16.95,
+            "cognitive_capacity": 24.33,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 1,
+            "circadian_phase": "Night",
+            "hourly_energy": 1.45,
+            "hourly_productivity": 22.04,
+            "focus_score": 18.88,
+            "cognitive_capacity": 25.64,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 2,
+            "circadian_phase": "Night",
+            "hourly_energy": 1.66,
+            "hourly_productivity": 23.9,
+            "focus_score": 20.81,
+            "cognitive_capacity": 26.95,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 3,
+            "circadian_phase": "Night",
+            "hourly_energy": 1.88,
+            "hourly_productivity": 25.76,
+            "focus_score": 22.74,
+            "cognitive_capacity": 28.26,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 4,
+            "circadian_phase": "Night",
+            "hourly_energy": 2.1,
+            "hourly_productivity": 27.61,
+            "focus_score": 24.67,
+            "cognitive_capacity": 29.57,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 5,
+            "circadian_phase": "Morning",
+            "hourly_energy": 2.31,
+            "hourly_productivity": 29.47,
+            "focus_score": 26.59,
+            "cognitive_capacity": 30.88,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 6,
+            "circadian_phase": "Morning",
+            "hourly_energy": 4.99,
+            "hourly_productivity": 52.5,
+            "focus_score": 50.52,
+            "cognitive_capacity": 47.15,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 7,
+            "circadian_phase": "Morning",
+            "hourly_energy": 5.47,
+            "hourly_productivity": 56.62,
+            "focus_score": 54.81,
+            "cognitive_capacity": 50.07,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 8,
+            "circadian_phase": "Morning",
+            "hourly_energy": 5.95,
+            "hourly_productivity": 60.75,
+            "focus_score": 59.09,
+            "cognitive_capacity": 52.98,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 9,
+            "circadian_phase": "Morning",
+            "hourly_energy": 6.43,
+            "hourly_productivity": 64.88,
+            "focus_score": 63.38,
+            "cognitive_capacity": 55.9,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 10,
+            "circadian_phase": "Morning",
+            "hourly_energy": 6.91,
+            "hourly_productivity": 69.0,
+            "focus_score": 67.66,
+            "cognitive_capacity": 58.81,
+            "recommended_task_type": "Meetings"
+          },
+          {
+            "hour": 11,
+            "circadian_phase": "Midday",
+            "hourly_energy": 7.39,
+            "hourly_productivity": 73.12,
+            "focus_score": 71.95,
+            "cognitive_capacity": 61.73,
+            "recommended_task_type": "Meetings"
+          },
+          {
+            "hour": 12,
+            "circadian_phase": "Midday",
+            "hourly_energy": 7.87,
+            "hourly_productivity": 77.25,
+            "focus_score": 76.23,
+            "cognitive_capacity": 64.64,
+            "recommended_task_type": "Creative Work"
+          },
+          {
+            "hour": 13,
+            "circadian_phase": "Midday",
+            "hourly_energy": 6.43,
+            "hourly_productivity": 64.85,
+            "focus_score": 63.35,
+            "cognitive_capacity": 55.88,
+            "recommended_task_type": "Meetings"
+          },
+          {
+            "hour": 14,
+            "circadian_phase": "Midday",
+            "hourly_energy": 6.02,
+            "hourly_productivity": 61.3,
+            "focus_score": 59.66,
+            "cognitive_capacity": 53.37,
+            "recommended_task_type": "Meetings"
+          },
+          {
+            "hour": 15,
+            "circadian_phase": "Afternoon",
+            "hourly_energy": 5.6,
+            "hourly_productivity": 57.75,
+            "focus_score": 55.98,
+            "cognitive_capacity": 50.87,
+            "recommended_task_type": "Meetings"
+          },
+          {
+            "hour": 16,
+            "circadian_phase": "Afternoon",
+            "hourly_energy": 5.95,
+            "hourly_productivity": 60.75,
+            "focus_score": 59.09,
+            "cognitive_capacity": 52.98,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 17,
+            "circadian_phase": "Afternoon",
+            "hourly_energy": 5.47,
+            "hourly_productivity": 56.62,
+            "focus_score": 54.81,
+            "cognitive_capacity": 50.07,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 18,
+            "circadian_phase": "Afternoon",
+            "hourly_energy": 4.99,
+            "hourly_productivity": 52.5,
+            "focus_score": 50.52,
+            "cognitive_capacity": 47.15,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 19,
+            "circadian_phase": "Evening",
+            "hourly_energy": 4.51,
+            "hourly_productivity": 48.37,
+            "focus_score": 46.24,
+            "cognitive_capacity": 44.24,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 20,
+            "circadian_phase": "Evening",
+            "hourly_energy": 4.03,
+            "hourly_productivity": 44.25,
+            "focus_score": 41.95,
+            "cognitive_capacity": 41.33,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 21,
+            "circadian_phase": "Evening",
+            "hourly_energy": 3.55,
+            "hourly_productivity": 40.12,
+            "focus_score": 37.66,
+            "cognitive_capacity": 38.41,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 22,
+            "circadian_phase": "Evening",
+            "hourly_energy": 3.07,
+            "hourly_productivity": 36.0,
+            "focus_score": 33.38,
+            "cognitive_capacity": 35.5,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 23,
+            "circadian_phase": "Evening",
+            "hourly_energy": 2.59,
+            "hourly_productivity": 31.88,
+            "focus_score": 29.09,
+            "cognitive_capacity": 32.58,
+            "recommended_task_type": "Recovery Break"
+          }
+        ],
+        "ultradian": {
+          "focus_block_minutes": 90,
+          "break_minutes": 15,
+          "pattern": "90 min focus + 15 min recovery"
+        },
+        "burnout": {
+          "risk": "Medium",
+          "max_deep_work_blocks": 2,
+          "reduce_workload": false,
+          "avoid_over_scheduling": true,
+          "notes": [
+            "Medium burnout risk: keep focus blocks shorter and add recovery between demanding tasks."
+          ]
+        },
+        "recovery_status": "Moderate"
+      },
+      "reasoning_notes": [
+        "Predicted productivity score: 72.5.",
+        "Predicted recovery score: 64.0.",
+        "Burnout risk: Medium.",
+        "Medium burnout risk: keep focus blocks shorter and add recovery between demanding tasks."
+      ]
+    },
+    "conservative": {
+      "plan_type": "conservative",
+      "user_id": "sample_user_001",
+      "date": "2026-06-16",
+      "summary": "Conservative plan using 70 min focus + 25 min recovery with moderate recovery status and medium burnout risk.",
+      "focus_blocks": [
+        {
+          "start": "09:00",
+          "end": "10:10",
+          "item_type": "task",
+          "title": "Research recommendation strategy",
+          "reason": "Placed in a morning window with cognitive capacity 55.9.",
+          "energy_window": "Admin Tasks",
+          "task_category": "Deep Work"
+        },
+        {
+          "start": "11:00",
+          "end": "12:10",
+          "item_type": "task",
+          "title": "Write model evaluation memo",
+          "reason": "Placed in a midday window with cognitive capacity 61.73.",
+          "energy_window": "Meetings",
+          "task_category": "Creative Work"
+        }
+      ],
+      "breaks": [
+        {
+          "start": "10:10",
+          "end": "10:35",
+          "item_type": "break",
+          "title": "Recovery Break",
+          "reason": "Ultradian rhythm support after a 70-minute work block.",
+          "energy_window": null,
+          "task_category": null
+        },
+        {
+          "start": "12:10",
+          "end": "12:35",
+          "item_type": "break",
+          "title": "Recovery Break",
+          "reason": "Ultradian rhythm support after a 70-minute work block.",
+          "energy_window": null,
+          "task_category": null
+        }
+      ],
+      "recovery_interventions": [
+        {
+          "type": "Posture Reset",
+          "frequency_minutes": 45,
+          "details": "Stand tall, reset shoulder blades, gently tuck chin, breathe slowly for 5 cycles."
+        },
+        {
+          "type": "20-20-20 Eye Strain Rule",
+          "frequency_minutes": 20,
+          "details": "Every 20 minutes, look 20 feet away for 20 seconds."
+        },
+        {
+          "type": "Mobility Break",
+          "frequency": "every 90 minutes",
+          "details": "Alternate neck mobility, thoracic extension, lumbar mobility, and a short walk."
+        },
+        {
+          "type": "Screen Load Reduction",
+          "frequency": "midday and late afternoon",
+          "details": "Batch screen-heavy tasks, dim glare, and use an off-screen planning break."
+        }
+      ],
+      "schedule": [
+        {
+          "start": "08:00",
+          "end": "09:00",
+          "item_type": "task",
+          "title": "Review dashboard metrics",
+          "reason": "Placed in a morning window with cognitive capacity 52.98.",
+          "energy_window": "Admin Tasks",
+          "task_category": "Meetings"
+        },
+        {
+          "start": "09:00",
+          "end": "10:10",
+          "item_type": "task",
+          "title": "Research recommendation strategy",
+          "reason": "Placed in a morning window with cognitive capacity 55.9.",
+          "energy_window": "Admin Tasks",
+          "task_category": "Deep Work"
+        },
+        {
+          "start": "10:10",
+          "end": "10:35",
+          "item_type": "break",
+          "title": "Recovery Break",
+          "reason": "Ultradian rhythm support after a 70-minute work block.",
+          "energy_window": null,
+          "task_category": null
+        },
+        {
+          "start": "11:00",
+          "end": "12:10",
+          "item_type": "task",
+          "title": "Write model evaluation memo",
+          "reason": "Placed in a midday window with cognitive capacity 61.73.",
+          "energy_window": "Meetings",
+          "task_category": "Creative Work"
+        },
+        {
+          "start": "12:10",
+          "end": "12:35",
+          "item_type": "break",
+          "title": "Recovery Break",
+          "reason": "Ultradian rhythm support after a 70-minute work block.",
+          "energy_window": null,
+          "task_category": null
+        },
+        {
+          "start": "13:00",
+          "end": "13:45",
+          "item_type": "task",
+          "title": "Team planning meeting",
+          "reason": "Placed in a midday window with cognitive capacity 55.88.",
+          "energy_window": "Meetings",
+          "task_category": "Meetings"
+        }
+      ],
+      "rule_outputs": {
+        "circadian_profile": [
+          {
+            "hour": 0,
+            "circadian_phase": "Night",
+            "hourly_energy": 1.23,
+            "hourly_productivity": 20.19,
+            "focus_score": 16.95,
+            "cognitive_capacity": 24.33,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 1,
+            "circadian_phase": "Night",
+            "hourly_energy": 1.45,
+            "hourly_productivity": 22.04,
+            "focus_score": 18.88,
+            "cognitive_capacity": 25.64,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 2,
+            "circadian_phase": "Night",
+            "hourly_energy": 1.66,
+            "hourly_productivity": 23.9,
+            "focus_score": 20.81,
+            "cognitive_capacity": 26.95,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 3,
+            "circadian_phase": "Night",
+            "hourly_energy": 1.88,
+            "hourly_productivity": 25.76,
+            "focus_score": 22.74,
+            "cognitive_capacity": 28.26,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 4,
+            "circadian_phase": "Night",
+            "hourly_energy": 2.1,
+            "hourly_productivity": 27.61,
+            "focus_score": 24.67,
+            "cognitive_capacity": 29.57,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 5,
+            "circadian_phase": "Morning",
+            "hourly_energy": 2.31,
+            "hourly_productivity": 29.47,
+            "focus_score": 26.59,
+            "cognitive_capacity": 30.88,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 6,
+            "circadian_phase": "Morning",
+            "hourly_energy": 4.99,
+            "hourly_productivity": 52.5,
+            "focus_score": 50.52,
+            "cognitive_capacity": 47.15,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 7,
+            "circadian_phase": "Morning",
+            "hourly_energy": 5.47,
+            "hourly_productivity": 56.62,
+            "focus_score": 54.81,
+            "cognitive_capacity": 50.07,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 8,
+            "circadian_phase": "Morning",
+            "hourly_energy": 5.95,
+            "hourly_productivity": 60.75,
+            "focus_score": 59.09,
+            "cognitive_capacity": 52.98,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 9,
+            "circadian_phase": "Morning",
+            "hourly_energy": 6.43,
+            "hourly_productivity": 64.88,
+            "focus_score": 63.38,
+            "cognitive_capacity": 55.9,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 10,
+            "circadian_phase": "Morning",
+            "hourly_energy": 6.91,
+            "hourly_productivity": 69.0,
+            "focus_score": 67.66,
+            "cognitive_capacity": 58.81,
+            "recommended_task_type": "Meetings"
+          },
+          {
+            "hour": 11,
+            "circadian_phase": "Midday",
+            "hourly_energy": 7.39,
+            "hourly_productivity": 73.12,
+            "focus_score": 71.95,
+            "cognitive_capacity": 61.73,
+            "recommended_task_type": "Meetings"
+          },
+          {
+            "hour": 12,
+            "circadian_phase": "Midday",
+            "hourly_energy": 7.87,
+            "hourly_productivity": 77.25,
+            "focus_score": 76.23,
+            "cognitive_capacity": 64.64,
+            "recommended_task_type": "Creative Work"
+          },
+          {
+            "hour": 13,
+            "circadian_phase": "Midday",
+            "hourly_energy": 6.43,
+            "hourly_productivity": 64.85,
+            "focus_score": 63.35,
+            "cognitive_capacity": 55.88,
+            "recommended_task_type": "Meetings"
+          },
+          {
+            "hour": 14,
+            "circadian_phase": "Midday",
+            "hourly_energy": 6.02,
+            "hourly_productivity": 61.3,
+            "focus_score": 59.66,
+            "cognitive_capacity": 53.37,
+            "recommended_task_type": "Meetings"
+          },
+          {
+            "hour": 15,
+            "circadian_phase": "Afternoon",
+            "hourly_energy": 5.6,
+            "hourly_productivity": 57.75,
+            "focus_score": 55.98,
+            "cognitive_capacity": 50.87,
+            "recommended_task_type": "Meetings"
+          },
+          {
+            "hour": 16,
+            "circadian_phase": "Afternoon",
+            "hourly_energy": 5.95,
+            "hourly_productivity": 60.75,
+            "focus_score": 59.09,
+            "cognitive_capacity": 52.98,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 17,
+            "circadian_phase": "Afternoon",
+            "hourly_energy": 5.47,
+            "hourly_productivity": 56.62,
+            "focus_score": 54.81,
+            "cognitive_capacity": 50.07,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 18,
+            "circadian_phase": "Afternoon",
+            "hourly_energy": 4.99,
+            "hourly_productivity": 52.5,
+            "focus_score": 50.52,
+            "cognitive_capacity": 47.15,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 19,
+            "circadian_phase": "Evening",
+            "hourly_energy": 4.51,
+            "hourly_productivity": 48.37,
+            "focus_score": 46.24,
+            "cognitive_capacity": 44.24,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 20,
+            "circadian_phase": "Evening",
+            "hourly_energy": 4.03,
+            "hourly_productivity": 44.25,
+            "focus_score": 41.95,
+            "cognitive_capacity": 41.33,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 21,
+            "circadian_phase": "Evening",
+            "hourly_energy": 3.55,
+            "hourly_productivity": 40.12,
+            "focus_score": 37.66,
+            "cognitive_capacity": 38.41,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 22,
+            "circadian_phase": "Evening",
+            "hourly_energy": 3.07,
+            "hourly_productivity": 36.0,
+            "focus_score": 33.38,
+            "cognitive_capacity": 35.5,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 23,
+            "circadian_phase": "Evening",
+            "hourly_energy": 2.59,
+            "hourly_productivity": 31.88,
+            "focus_score": 29.09,
+            "cognitive_capacity": 32.58,
+            "recommended_task_type": "Recovery Break"
+          }
+        ],
+        "ultradian": {
+          "focus_block_minutes": 70,
+          "break_minutes": 25,
+          "pattern": "70 min focus + 25 min recovery"
+        },
+        "burnout": {
+          "risk": "Medium",
+          "max_deep_work_blocks": 1,
+          "reduce_workload": true,
+          "avoid_over_scheduling": true,
+          "notes": [
+            "Medium burnout risk: keep focus blocks shorter and add recovery between demanding tasks."
+          ]
+        },
+        "recovery_status": "Moderate"
+      },
+      "reasoning_notes": [
+        "Predicted productivity score: 72.5.",
+        "Predicted recovery score: 64.0.",
+        "Burnout risk: Medium.",
+        "Medium burnout risk: keep focus blocks shorter and add recovery between demanding tasks."
+      ]
+    },
+    "high_performance": {
+      "plan_type": "high_performance",
+      "user_id": "sample_user_001",
+      "date": "2026-06-16",
+      "summary": "High Performance plan using 105 min focus + 15 min recovery with moderate recovery status and medium burnout risk.",
+      "focus_blocks": [
+        {
+          "start": "08:00",
+          "end": "09:00",
+          "item_type": "task",
+          "title": "Learning block: LangChain prompt patterns",
+          "reason": "Placed in a morning window with cognitive capacity 52.98.",
+          "energy_window": "Admin Tasks",
+          "task_category": "Learning"
+        },
+        {
+          "start": "09:00",
+          "end": "10:40",
+          "item_type": "task",
+          "title": "Research recommendation strategy",
+          "reason": "Placed in a morning window with cognitive capacity 55.9.",
+          "energy_window": "Admin Tasks",
+          "task_category": "Deep Work"
+        },
+        {
+          "start": "11:00",
+          "end": "12:30",
+          "item_type": "task",
+          "title": "Write model evaluation memo",
+          "reason": "Placed in a midday window with cognitive capacity 61.73.",
+          "energy_window": "Meetings",
+          "task_category": "Deep Work"
+        }
+      ],
+      "breaks": [
+        {
+          "start": "10:40",
+          "end": "10:55",
+          "item_type": "break",
+          "title": "Recovery Break",
+          "reason": "Ultradian rhythm support after a 100-minute work block.",
+          "energy_window": null,
+          "task_category": null
+        }
+      ],
+      "recovery_interventions": [
+        {
+          "type": "Posture Reset",
+          "frequency_minutes": 45,
+          "details": "Stand tall, reset shoulder blades, gently tuck chin, breathe slowly for 5 cycles."
+        },
+        {
+          "type": "20-20-20 Eye Strain Rule",
+          "frequency_minutes": 20,
+          "details": "Every 20 minutes, look 20 feet away for 20 seconds."
+        },
+        {
+          "type": "Mobility Break",
+          "frequency": "every 90 minutes",
+          "details": "Alternate neck mobility, thoracic extension, lumbar mobility, and a short walk."
+        },
+        {
+          "type": "Screen Load Reduction",
+          "frequency": "midday and late afternoon",
+          "details": "Batch screen-heavy tasks, dim glare, and use an off-screen planning break."
+        }
+      ],
+      "schedule": [
+        {
+          "start": "08:00",
+          "end": "09:00",
+          "item_type": "task",
+          "title": "Learning block: LangChain prompt patterns",
+          "reason": "Placed in a morning window with cognitive capacity 52.98.",
+          "energy_window": "Admin Tasks",
+          "task_category": "Learning"
+        },
+        {
+          "start": "09:00",
+          "end": "10:40",
+          "item_type": "task",
+          "title": "Research recommendation strategy",
+          "reason": "Placed in a morning window with cognitive capacity 55.9.",
+          "energy_window": "Admin Tasks",
+          "task_category": "Deep Work"
+        },
+        {
+          "start": "10:40",
+          "end": "10:55",
+          "item_type": "break",
+          "title": "Recovery Break",
+          "reason": "Ultradian rhythm support after a 100-minute work block.",
+          "energy_window": null,
+          "task_category": null
+        },
+        {
+          "start": "11:00",
+          "end": "12:30",
+          "item_type": "task",
+          "title": "Write model evaluation memo",
+          "reason": "Placed in a midday window with cognitive capacity 61.73.",
+          "energy_window": "Meetings",
+          "task_category": "Deep Work"
+        },
+        {
+          "start": "13:00",
+          "end": "13:45",
+          "item_type": "task",
+          "title": "Team planning meeting",
+          "reason": "Placed in a midday window with cognitive capacity 55.88.",
+          "energy_window": "Meetings",
+          "task_category": "Meetings"
+        },
+        {
+          "start": "14:00",
+          "end": "15:00",
+          "item_type": "task",
+          "title": "Review dashboard metrics",
+          "reason": "Placed in a midday window with cognitive capacity 53.37.",
+          "energy_window": "Meetings",
+          "task_category": "Meetings"
+        },
+        {
+          "start": "16:00",
+          "end": "16:40",
+          "item_type": "task",
+          "title": "Email and admin follow-up",
+          "reason": "Placed in a afternoon window with cognitive capacity 52.98.",
+          "energy_window": "Admin Tasks",
+          "task_category": "Administrative Work"
+        }
+      ],
+      "rule_outputs": {
+        "circadian_profile": [
+          {
+            "hour": 0,
+            "circadian_phase": "Night",
+            "hourly_energy": 1.23,
+            "hourly_productivity": 20.19,
+            "focus_score": 16.95,
+            "cognitive_capacity": 24.33,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 1,
+            "circadian_phase": "Night",
+            "hourly_energy": 1.45,
+            "hourly_productivity": 22.04,
+            "focus_score": 18.88,
+            "cognitive_capacity": 25.64,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 2,
+            "circadian_phase": "Night",
+            "hourly_energy": 1.66,
+            "hourly_productivity": 23.9,
+            "focus_score": 20.81,
+            "cognitive_capacity": 26.95,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 3,
+            "circadian_phase": "Night",
+            "hourly_energy": 1.88,
+            "hourly_productivity": 25.76,
+            "focus_score": 22.74,
+            "cognitive_capacity": 28.26,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 4,
+            "circadian_phase": "Night",
+            "hourly_energy": 2.1,
+            "hourly_productivity": 27.61,
+            "focus_score": 24.67,
+            "cognitive_capacity": 29.57,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 5,
+            "circadian_phase": "Morning",
+            "hourly_energy": 2.31,
+            "hourly_productivity": 29.47,
+            "focus_score": 26.59,
+            "cognitive_capacity": 30.88,
+            "recommended_task_type": "Recovery Break"
+          },
+          {
+            "hour": 6,
+            "circadian_phase": "Morning",
+            "hourly_energy": 4.99,
+            "hourly_productivity": 52.5,
+            "focus_score": 50.52,
+            "cognitive_capacity": 47.15,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 7,
+            "circadian_phase": "Morning",
+            "hourly_energy": 5.47,
+            "hourly_productivity": 56.62,
+            "focus_score": 54.81,
+            "cognitive_capacity": 50.07,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 8,
+            "circadian_phase": "Morning",
+            "hourly_energy": 5.95,
+            "hourly_productivity": 60.75,
+            "focus_score": 59.09,
+            "cognitive_capacity": 52.98,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 9,
+            "circadian_phase": "Morning",
+            "hourly_energy": 6.43,
+            "hourly_productivity": 64.88,
+            "focus_score": 63.38,
+            "cognitive_capacity": 55.9,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 10,
+            "circadian_phase": "Morning",
+            "hourly_energy": 6.91,
+            "hourly_productivity": 69.0,
+            "focus_score": 67.66,
+            "cognitive_capacity": 58.81,
+            "recommended_task_type": "Meetings"
+          },
+          {
+            "hour": 11,
+            "circadian_phase": "Midday",
+            "hourly_energy": 7.39,
+            "hourly_productivity": 73.12,
+            "focus_score": 71.95,
+            "cognitive_capacity": 61.73,
+            "recommended_task_type": "Meetings"
+          },
+          {
+            "hour": 12,
+            "circadian_phase": "Midday",
+            "hourly_energy": 7.87,
+            "hourly_productivity": 77.25,
+            "focus_score": 76.23,
+            "cognitive_capacity": 64.64,
+            "recommended_task_type": "Creative Work"
+          },
+          {
+            "hour": 13,
+            "circadian_phase": "Midday",
+            "hourly_energy": 6.43,
+            "hourly_productivity": 64.85,
+            "focus_score": 63.35,
+            "cognitive_capacity": 55.88,
+            "recommended_task_type": "Meetings"
+          },
+          {
+            "hour": 14,
+            "circadian_phase": "Midday",
+            "hourly_energy": 6.02,
+            "hourly_productivity": 61.3,
+            "focus_score": 59.66,
+            "cognitive_capacity": 53.37,
+            "recommended_task_type": "Meetings"
+          },
+          {
+            "hour": 15,
+            "circadian_phase": "Afternoon",
+            "hourly_energy": 5.6,
+            "hourly_productivity": 57.75,
+            "focus_score": 55.98,
+            "cognitive_capacity": 50.87,
+            "recommended_task_type": "Meetings"
+          },
+          {
+            "hour": 16,
+            "circadian_phase": "Afternoon",
+            "hourly_energy": 5.95,
+            "hourly_productivity": 60.75,
+            "focus_score": 59.09,
+            "cognitive_capacity": 52.98,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 17,
+            "circadian_phase": "Afternoon",
+            "hourly_energy": 5.47,
+            "hourly_productivity": 56.62,
+            "focus_score": 54.81,
+            "cognitive_capacity": 50.07,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 18,
+            "circadian_phase": "Afternoon",
+            "hourly_energy": 4.99,
+            "hourly_productivity": 52.5,
+            "focus_score": 50.52,
+            "cognitive_capacity": 47.15,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 19,
+            "circadian_phase": "Evening",
+            "hourly_energy": 4.51,
+            "hourly_productivity": 48.37,
+            "focus_score": 46.24,
+            "cognitive_capacity": 44.24,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 20,
+            "circadian_phase": "Evening",
+            "hourly_energy": 4.03,
+            "hourly_productivity": 44.25,
+            "focus_score": 41.95,
+            "cognitive_capacity": 41.33,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 21,
+            "circadian_phase": "Evening",
+            "hourly_energy": 3.55,
+            "hourly_productivity": 40.12,
+            "focus_score": 37.66,
+            "cognitive_capacity": 38.41,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 22,
+            "circadian_phase": "Evening",
+            "hourly_energy": 3.07,
+            "hourly_productivity": 36.0,
+            "focus_score": 33.38,
+            "cognitive_capacity": 35.5,
+            "recommended_task_type": "Admin Tasks"
+          },
+          {
+            "hour": 23,
+            "circadian_phase": "Evening",
+            "hourly_energy": 2.59,
+            "hourly_productivity": 31.88,
+            "focus_score": 29.09,
+            "cognitive_capacity": 32.58,
+            "recommended_task_type": "Recovery Break"
+          }
+        ],
+        "ultradian": {
+          "focus_block_minutes": 105,
+          "break_minutes": 15,
+          "pattern": "105 min focus + 15 min recovery"
+        },
+        "burnout": {
+          "risk": "Medium",
+          "max_deep_work_blocks": 2,
+          "reduce_workload": false,
+          "avoid_over_scheduling": true,
+          "notes": [
+            "Medium burnout risk: keep focus blocks shorter and add recovery between demanding tasks."
+          ]
+        },
+        "recovery_status": "Moderate"
+      },
+      "reasoning_notes": [
+        "Predicted productivity score: 72.5.",
+        "Predicted recovery score: 64.0.",
+        "Burnout risk: Medium.",
+        "Medium burnout risk: keep focus blocks shorter and add recovery between demanding tasks."
+      ]
+    }
+  },
+  "weekly_recovery_strategy": [
+    "Use conservative plan after any night under 6.5 hours of sleep.",
+    "Keep two low-cognitive evenings for recovery.",
+    "Review sleep debt and fatigue every Friday."
+  ]
+}

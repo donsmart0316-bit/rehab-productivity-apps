@@ -1,0 +1,15 @@
+streamlit>=1.41,<2
+pandas>=2.2,<3
+numpy>=1.26,<3
+openpyxl>=3.1,<4
+scikit-learn>=1.5,<2
+sentence-transformers>=3,<6
+langchain>=0.3,<2
+langchain-community>=0.3,<1
+langchain-groq>=0.2,<2
+langchain-huggingface>=0.1,<2
+langchain-text-splitters>=0.3,<2
+faiss-cpu>=1.8,<2
+python-dotenv>=1,<2
+fpdf==1.7.2
+pymupdf>=1.24,<2

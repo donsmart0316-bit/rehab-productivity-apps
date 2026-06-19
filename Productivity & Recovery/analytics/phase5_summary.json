@@ -1,0 +1,14 @@
+{
+  "simulated_users": 500,
+  "average_schedule_quality": 95.97,
+  "sustainable_plan_rate": 100.0,
+  "high_risk_protection_rate": 100.0,
+  "robustness_stability_rate": 92.5,
+  "average_recommendation_confidence": 85.72,
+  "phase5_maturity_score": 90,
+  "llm_status": {
+    "provider": "Groq",
+    "model": "llama-3.1-8b-instant",
+    "key_loaded": true
+  }
+}

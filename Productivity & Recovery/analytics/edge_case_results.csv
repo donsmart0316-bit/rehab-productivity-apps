@@ -1,0 +1,16 @@
+case,chronotype,productivity_score,burnout_risk,recovery_score,sleep_debt,task_load_score,productivity_confidence,productivity_confidence_label,burnout_confidence,burnout_confidence_label,recommendation_confidence,recommendation_confidence_label,history_records,input_completeness,input_warnings,schedule_quality,chronotype_ok,burnout_protection_ok,preventive_recovery_ok,breaks,schedule_items
+Severe Sleep Deprivation,Morning,0.0,High,0.0,5.0,100.0,72.0,Moderate,80.0,High,81.0,High,0,1.0,[],96,True,True,True,5,9
+Severe Sleep Deprivation,Intermediate,0.0,High,0.0,5.0,100.0,72.0,Moderate,80.0,High,81.0,High,0,1.0,[],96,True,True,True,4,8
+Severe Sleep Deprivation,Evening,0.0,High,0.0,5.0,100.0,72.0,Moderate,80.0,High,81.0,High,0,1.0,[],96,True,True,True,4,8
+Extreme Stress,Morning,14.28,High,28.55,0.9,100.0,72.0,Moderate,80.0,High,81.0,High,0,1.0,[],96,True,True,True,5,9
+Extreme Stress,Intermediate,14.17,High,28.55,0.9,100.0,72.0,Moderate,80.0,High,81.0,High,0,1.0,[],96,True,True,True,4,8
+Extreme Stress,Evening,14.17,High,28.55,0.9,100.0,72.0,Moderate,80.0,High,81.0,High,0,1.0,[],96,True,True,True,4,8
+High Workload,Morning,29.53,High,38.65,0.9,100.0,72.0,Moderate,80.0,High,81.0,High,0,1.0,[],96,True,True,True,4,8
+High Workload,Intermediate,29.41,High,38.65,0.9,100.0,72.0,Moderate,80.0,High,81.0,High,0,1.0,[],96,True,True,True,3,7
+High Workload,Evening,29.41,High,38.65,0.9,100.0,72.0,Moderate,80.0,High,81.0,High,0,1.0,[],96,True,True,True,3,7
+Contradictory High Energy Poor Sleep,Morning,42.15,High,24.96,5.0,100.0,64.0,Moderate,72.0,Moderate,73.0,Moderate,0,1.0,['Energy is very high despite severe sleep loss; confidence is reduced.'],94,True,True,True,4,8
+Contradictory High Energy Poor Sleep,Intermediate,42.03,High,24.96,5.0,100.0,64.0,Moderate,72.0,Moderate,73.0,Moderate,0,1.0,['Energy is very high despite severe sleep loss; confidence is reduced.'],94,True,True,True,3,7
+Contradictory High Energy Poor Sleep,Evening,42.03,High,24.96,5.0,100.0,64.0,Moderate,72.0,Moderate,73.0,Moderate,0,1.0,['Energy is very high despite severe sleep loss; confidence is reduced.'],94,True,True,True,3,7
+Contradictory Low Stress High Fatigue,Morning,31.42,Medium,60.75,0.9,100.0,72.0,Moderate,72.0,Moderate,77.0,Moderate,0,1.0,['Fatigue is very high despite low stress; confidence is reduced.'],94,True,True,True,3,7
+Contradictory Low Stress High Fatigue,Intermediate,31.31,Medium,60.75,0.9,100.0,72.0,Moderate,72.0,Moderate,77.0,Moderate,0,1.0,['Fatigue is very high despite low stress; confidence is reduced.'],94,True,True,True,2,6
+Contradictory Low Stress High Fatigue,Evening,31.31,Medium,60.75,0.9,100.0,72.0,Moderate,72.0,Moderate,77.0,Moderate,0,1.0,['Fatigue is very high despite low stress; confidence is reduced.'],94,True,True,True,2,6
