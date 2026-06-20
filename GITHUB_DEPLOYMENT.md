@@ -29,7 +29,7 @@ git push -u origin main
 
 After the repo is public:
 
-1. Deploy `Productivity & Recovery` on Streamlit Community Cloud with entrypoint `Productivity & Recovery/app/Home.py`.
+1. Deploy `Productivity & Recovery` on Streamlit Community Cloud with entrypoint `productivity_recovery/Home.py`.
 2. Deploy `Exercise recommender` on a Python/container host. It needs external storage or licensed bundled assets for `textbooks/` or `textbook_vectorstore/`.
 3. Deploy `physio-tele-rehab/backend` on a web service host.
 4. Deploy `physio-tele-rehab/frontend` on Streamlit Cloud or a Python/container host.

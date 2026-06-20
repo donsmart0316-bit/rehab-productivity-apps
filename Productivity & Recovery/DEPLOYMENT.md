@@ -3,7 +3,7 @@
 ## Streamlit Community Cloud
 
 1. Push this folder to GitHub.
-2. Create a Streamlit app with `app/Home.py` as the main file.
+2. Create a Streamlit app with `productivity_recovery/Home.py` as the main file.
 3. Keep `requirements.txt`, `models/`, and the required `data/` artifacts in the deployed repository or attached storage.
 4. Add optional LLM secrets:
 
