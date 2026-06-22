@@ -9,5 +9,6 @@ requests
 streamlit
 pandas
 plotly
-opencv-python
+opencv-python-headless
+numpy
 python-dotenv

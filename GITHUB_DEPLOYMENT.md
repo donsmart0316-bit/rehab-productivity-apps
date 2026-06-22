@@ -32,7 +32,7 @@ After the repo is public:
 1. Deploy `Productivity & Recovery` on Streamlit Community Cloud with entrypoint `productivity_recovery/Home.py`.
 2. Deploy `Exercise recommender` on Streamlit Community Cloud with entrypoint `exercise_recommender/app.py`, or on a Python/container host.
 3. Deploy `physio-tele-rehab/backend` on a web service host.
-4. Deploy `physio-tele-rehab/frontend` on Streamlit Cloud or a Python/container host.
+4. Deploy the Physio frontend on Streamlit Cloud with entrypoint `physio_frontend/app.py`, or deploy `physio-tele-rehab/frontend` on a Python/container host.
 5. Set `API_URL` in the frontend host to the backend URL plus `/api`.
 
 GitHub Pages is not enough for these apps because they run Python servers.

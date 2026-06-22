@@ -3,7 +3,7 @@
 Deploy this as two services:
 
 - Backend: FastAPI service from `backend/`
-- Frontend: Streamlit service from `frontend/`
+- Frontend: Streamlit service from `frontend/`, or Streamlit Cloud entrypoint `physio_frontend/app.py`
 
 ## Backend
 
@@ -55,6 +55,12 @@ Start command:
 
 ```bash
 streamlit run app.py --server.address 0.0.0.0 --server.port $PORT
+```
+
+For Streamlit Community Cloud, use this main file path:
+
+```text
+physio_frontend/app.py
 ```
 
 Set `API_URL` to the deployed backend URL plus `/api`, for example:

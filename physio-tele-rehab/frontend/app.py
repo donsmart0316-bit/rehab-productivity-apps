@@ -7,7 +7,20 @@ import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
 
-API = os.getenv("API_URL", "http://127.0.0.1:8001/api")
+def get_setting(name: str, default: str = "") -> str:
+    value = os.getenv(name)
+    if value:
+        return value
+    try:
+        secret_value = st.secrets.get(name)
+        if secret_value:
+            return str(secret_value)
+    except Exception:
+        pass
+    return default
+
+
+API = get_setting("API_URL", "http://127.0.0.1:8001/api")
 
 LANGUAGES = [
     "English", "Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Assamese", "Aymara", "Azerbaijani",
