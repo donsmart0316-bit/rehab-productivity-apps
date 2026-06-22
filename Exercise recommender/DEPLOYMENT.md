@@ -3,7 +3,7 @@
 ## Streamlit Community Cloud
 
 1. Push this folder to GitHub.
-2. Create a Streamlit app with `recommender.py` as the main file.
+2. Create a Streamlit app with `exercise_recommender/app.py` as the main file.
 3. Add this secret:
 
 ```toml

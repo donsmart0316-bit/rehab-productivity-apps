@@ -2,7 +2,7 @@
 
 This repository contains three Python apps:
 
-- `Exercise recommender`: Streamlit rehab exercise recommendation app.
+- `Exercise recommender`: Streamlit rehab exercise recommendation app. Use `exercise_recommender/app.py` for Streamlit Cloud deployment.
 - `Productivity & Recovery`: Streamlit productivity, recovery, and burnout-prevention coach. Use `productivity_recovery/Home.py` for Streamlit Cloud deployment.
 - `physio-tele-rehab`: FastAPI backend plus Streamlit frontend for tele-rehabilitation workflows.
 
