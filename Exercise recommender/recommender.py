@@ -106,14 +106,40 @@ def get_secret(name):
     if value:
         return value
     try:
-        return st.secrets.get(name)
+        value = st.secrets.get(name)
+        if value:
+            return value
+        for section in ("general", "secrets"):
+            scoped = st.secrets.get(section, {})
+            if hasattr(scoped, "get"):
+                value = scoped.get(name)
+                if value:
+                    return value
     except Exception:
         return None
+    return None
+
+
+def visible_secret_keys():
+    try:
+        keys = []
+        for key, value in st.secrets.items():
+            keys.append(str(key))
+            if hasattr(value, "keys"):
+                keys.extend(f"{key}.{nested}" for nested in value.keys())
+        return sorted(keys)
+    except Exception:
+        return []
 
 
 GROQ_API_KEY = get_secret("GROQ_API_KEY") or get_secret("GROK_API_KEY")
 if not GROQ_API_KEY:
     st.error("Groq API key not found. Set GROQ_API_KEY in your environment or Streamlit secrets.")
+    keys = visible_secret_keys()
+    if keys:
+        st.caption(f"Visible Streamlit secret names: {', '.join(keys)}")
+    else:
+        st.caption("No Streamlit secret names are visible to this app. Save secrets for this exact app, then reboot.")
     st.stop()
 
 
