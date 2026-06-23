@@ -20,7 +20,7 @@ def get_setting(name: str, default: str = "") -> str:
     return default
 
 
-API = get_setting("API_URL", "http://127.0.0.1:8001/api")
+API = get_setting("API_URL", "https://physiotelerehab.onrender.com/api")
 
 LANGUAGES = [
     "English", "Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Assamese", "Aymara", "Azerbaijani",
@@ -811,6 +811,7 @@ def admin_research():
 
 def sidebar():
     with st.sidebar:
+        st.caption(f"API: {API}")
         current_language = st.session_state.get("language", "English")
         selected_language = st.selectbox("Language", LANGUAGES, index=LANGUAGES.index(current_language) if current_language in LANGUAGES else 0, key="language_picker")
         if selected_language != current_language:
