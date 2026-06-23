@@ -41,7 +41,7 @@ ALGORITHM = "HS256"
 TRANSLATION_API_URL = os.getenv("TRANSLATION_API_URL", "").strip()
 TRANSLATION_API_KEY = os.getenv("TRANSLATION_API_KEY", "").strip()
 TRANSLATION_PROVIDER = os.getenv("TRANSLATION_PROVIDER", "mymemory").strip().lower()
-REPO_ROOT = BASE_DIR.parents[1]
+REPO_ROOT = BASE_DIR.parents[1] if len(BASE_DIR.parents) > 1 else BASE_DIR.parent
 DEFAULT_TEXTBOOK_VECTORSTORE_PATH = BASE_DIR / "textbook_vectorstore"
 if not DEFAULT_TEXTBOOK_VECTORSTORE_PATH.exists():
     DEFAULT_TEXTBOOK_VECTORSTORE_PATH = REPO_ROOT / "Exercise recommender" / "textbook_vectorstore"
