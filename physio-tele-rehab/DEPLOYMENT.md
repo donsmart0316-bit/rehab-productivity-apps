@@ -22,7 +22,7 @@ uvicorn app.main:app --host 0.0.0.0 --port $PORT
 Required production environment variables:
 
 ```text
-SECRET_KEY=replace-with-a-long-random-secret
+SECRET_KEY=replace-with-a-long-random-secret-at-least-32-characters
 ```
 
 Optional environment variables:
@@ -33,6 +33,7 @@ SMTP_PORT=587
 SMTP_USERNAME=your-email@example.com
 SMTP_PASSWORD=your-email-app-password
 SMTP_FROM=your-email@example.com
+SMTP_TRY_FALLBACK_PORTS=false
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_AUTH_TOKEN=your-twilio-auth-token
 TWILIO_FROM_PHONE=+15551234567

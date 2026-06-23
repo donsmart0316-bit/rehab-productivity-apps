@@ -51,6 +51,7 @@ def env_secret(name: str, default: str = "") -> str:
 
 SMTP_HOST = env_secret("SMTP_SERVER") or env_secret("SMTP_HOST")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_TRY_FALLBACK_PORTS = os.getenv("SMTP_TRY_FALLBACK_PORTS", "false").lower() == "true"
 SMTP_USERNAME = env_secret("SMTP_USERNAME")
 SMTP_PASSWORD = env_secret("SMTP_PASSWORD")
 SMTP_FROM = env_secret("SMTP_FROM") or env_secret("EMAIL_FROM") or SMTP_USERNAME or "noreply@physio.local"
@@ -986,7 +987,9 @@ def send_email_notification(to_email: str | None, subject: str, message: str) ->
     email.set_content(message)
     errors = []
     ports = []
-    preferred_ports = [465, SMTP_PORT, 587, 2525] if SMTP_HOST == "smtp-relay.brevo.com" else [SMTP_PORT, 465, 587, 2525]
+    preferred_ports = [SMTP_PORT]
+    if SMTP_TRY_FALLBACK_PORTS:
+        preferred_ports.extend([465, 587, 2525])
     for port in preferred_ports:
         if port not in ports:
             ports.append(port)
@@ -994,9 +997,9 @@ def send_email_notification(to_email: str | None, subject: str, message: str) ->
     for port in ports:
         try:
             if port == 465:
-                smtp = smtplib.SMTP_SSL(SMTP_HOST, port, timeout=8, context=context)
+                smtp = smtplib.SMTP_SSL(SMTP_HOST, port, timeout=5, context=context)
             else:
-                smtp = smtplib.SMTP(SMTP_HOST, port, timeout=8)
+                smtp = smtplib.SMTP(SMTP_HOST, port, timeout=5)
             with smtp:
                 if port != 465:
                     smtp.ehlo()
