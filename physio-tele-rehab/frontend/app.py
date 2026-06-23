@@ -122,6 +122,42 @@ def translate_ui_value(value):
     return value
 
 
+def should_translate_cell(value):
+    if not isinstance(value, str):
+        return False
+    stripped = value.strip()
+    if not stripped:
+        return False
+    if "@" in stripped or "://" in stripped or stripped.startswith("PT-"):
+        return False
+    if len(stripped) > 280:
+        return False
+    return any(char.isalpha() for char in stripped)
+
+
+def translate_dataframe_value(value):
+    if should_translate_cell(value):
+        return t(value)
+    return value
+
+
+def translate_dataframe(data):
+    try:
+        if isinstance(data, pd.DataFrame):
+            frame = data.copy()
+        elif isinstance(data, list) and all(isinstance(item, dict) for item in data):
+            frame = pd.DataFrame(data)
+        else:
+            return data
+        frame.columns = [t(str(column).replace("_", " ").title()) for column in frame.columns]
+        for column in frame.columns:
+            if frame[column].dtype == "object":
+                frame[column] = frame[column].map(translate_dataframe_value)
+        return frame
+    except Exception:
+        return data
+
+
 def make_i18n_wrapper(fn, has_self=False):
     def wrapper(*args, **kwargs):
         args = list(args)
@@ -131,6 +167,20 @@ def make_i18n_wrapper(fn, has_self=False):
             args[label_index] = translate_ui_value(args[label_index])
         elif not skip and "label" in kwargs:
             kwargs["label"] = translate_ui_value(kwargs["label"])
+        return fn(*args, **kwargs)
+
+    wrapper._physio_i18n_wrapped = True
+    return wrapper
+
+
+def make_dataframe_wrapper(fn, has_self=False):
+    def wrapper(*args, **kwargs):
+        args = list(args)
+        data_index = 1 if has_self else 0
+        if len(args) > data_index:
+            args[data_index] = translate_dataframe(args[data_index])
+        elif "data" in kwargs:
+            kwargs["data"] = translate_dataframe(kwargs["data"])
         return fn(*args, **kwargs)
 
     wrapper._physio_i18n_wrapped = True
@@ -154,6 +204,13 @@ def patch_streamlit_text():
         generator_original = getattr(DeltaGenerator, name, None)
         if callable(generator_original) and not getattr(generator_original, "_physio_i18n_wrapped", False):
             setattr(DeltaGenerator, name, make_i18n_wrapper(generator_original, has_self=True))
+    for name in ["dataframe", "table"]:
+        original = getattr(st, name, None)
+        if callable(original) and not getattr(original, "_physio_i18n_wrapped", False):
+            setattr(st, name, make_dataframe_wrapper(original))
+        generator_original = getattr(DeltaGenerator, name, None)
+        if callable(generator_original) and not getattr(generator_original, "_physio_i18n_wrapped", False):
+            setattr(DeltaGenerator, name, make_dataframe_wrapper(generator_original, has_self=True))
     st._physio_i18n_patch_version = 2
     DeltaGenerator._physio_i18n_patch_version = 2
 
@@ -197,6 +254,16 @@ def attachment_bytes(message_id):
     return None
 
 
+def medical_document_bytes(document_id):
+    try:
+        response = requests.get(f"{API}/clinical-records/documents/{document_id}/file", headers=headers(), timeout=20)
+        if response.ok:
+            return response.content
+    except Exception:
+        return None
+    return None
+
+
 def metadata_value(metadata, key):
     text_value = str(metadata or "")
     marker = f"'{key}':"
@@ -205,6 +272,33 @@ def metadata_value(metadata, key):
     if marker not in text_value:
         return None
     return text_value.split(marker, 1)[1].split(",", 1)[0].strip().strip("{}'\" ")
+
+
+def message_sender_label(msg):
+    if msg.get("sender_id") == st.session_state.get("user_id"):
+        return "You"
+    sender_name = msg.get("sender_name") or "Unknown"
+    sender_role = str(msg.get("sender_role") or "").lower()
+    if sender_role == "therapist":
+        return f"Your therapist, {sender_name}"
+    if sender_role == "patient":
+        return f"Patient, {sender_name}"
+    return sender_name
+
+
+def render_document_file(document):
+    blob = medical_document_bytes(document["id"])
+    filename = metadata_value(document.get("file_metadata"), "filename") or document.get("title") or "medical-document"
+    content_type = metadata_value(document.get("file_metadata"), "content_type") or ""
+    if not blob:
+        st.warning("Document file is not available on the server.")
+        return
+    if content_type.startswith("image/"):
+        st.image(blob, caption=filename)
+    elif content_type == "application/pdf" or filename.lower().endswith(".pdf"):
+        st.download_button("Download PDF", blob, filename, mime="application/pdf", key=f"doc_pdf_{document['id']}")
+    else:
+        st.download_button("Download File", blob, filename, mime=content_type or "application/octet-stream", key=f"doc_file_{document['id']}")
 
 
 def init_state():
@@ -339,9 +433,6 @@ def onboarding_page():
             "emergency_name": st.text_input("Emergency Contact Name"),
             "emergency_phone": st.text_input("Emergency Contact Phone"),
             "emergency_relation": st.text_input("Emergency Contact Relation"),
-            "condition": st.text_input("Condition"),
-            "severity": st.selectbox("Severity", ["Mild", "Moderate", "Severe"]),
-            "notes": st.text_area("Notes"),
         }
         if st.form_submit_button("Complete Onboarding"):
             if api("POST", "/onboarding/", json=data):
@@ -597,7 +688,7 @@ def message_box(patient_id):
             st.rerun()
     messages = api("GET", f"/communications/patient/{patient_id}") or []
     for msg in messages:
-        sender = "You" if msg.get("sender_id") == st.session_state.get("user_id") else "Other User"
+        sender = message_sender_label(msg)
         with st.container():
             st.caption(f"{sender} - {str(msg.get('message_type')).title()} - {format_dt(msg.get('created_at'))}")
             content = msg.get("content") or ""
@@ -715,7 +806,17 @@ def clinical_records(patient):
                     st.rerun()
         else:
             st.info("Patients Upload MRI, CT, X-Ray, Lab, Referral, And Photo Documents Here. Therapists Can View Them.")
-        st.dataframe(pd.DataFrame(api("GET", f"/clinical-records/documents/patient/{patient['id']}") or []), use_container_width=True)
+        documents = api("GET", f"/clinical-records/documents/patient/{patient['id']}") or []
+        if documents:
+            for document in documents:
+                title = document.get("title") or metadata_value(document.get("file_metadata"), "filename") or "Medical Document"
+                with st.expander(f"{title} - {document.get('document_type', 'Document')}", expanded=False):
+                    if document.get("description"):
+                        st.write(document.get("description"))
+                    st.caption(f"Uploaded by {document.get('uploaded_by_name') or 'patient'} on {format_dt(document.get('created_at'))}")
+                    render_document_file(document)
+        else:
+            st.info("No Medical Documents Uploaded Yet.")
     with tabs[1]:
         st.caption("Examples: Oswestry Disability Index, DASH, WOMAC, LEFS, Berg Balance Scale, TUG, 6 Minute Walk Test, VAS Pain, NPRS, KOOS, HOOS.")
         if is_therapist:
@@ -723,9 +824,18 @@ def clinical_records(patient):
                 name = st.text_input("Outcome Measure Used")
                 score = st.number_input("Score", value=0.0)
                 max_score = st.number_input("Max Score", value=100.0)
+                interpretation = st.text_area("Interpretation")
                 if st.form_submit_button("Save Outcome"):
-                    api("POST", "/clinical-records/outcome-measures", json={"patient_id": patient["id"], "measure_name": name, "score": score, "max_score": max_score})
-        st.dataframe(pd.DataFrame(api("GET", f"/clinical-records/outcome-measures/patient/{patient['id']}") or []), use_container_width=True)
+                    api("POST", "/clinical-records/outcome-measures", json={"patient_id": patient["id"], "measure_name": name, "score": score, "max_score": max_score, "interpretation": interpretation})
+        outcomes = api("GET", f"/clinical-records/outcome-measures/patient/{patient['id']}") or []
+        if outcomes:
+            for outcome in outcomes:
+                with st.expander(f"{outcome.get('measure_name')} - {outcome.get('score')}/{outcome.get('max_score')}", expanded=False):
+                    st.write(f"Measured: {format_dt(outcome.get('measured_at'))}")
+                    if outcome.get("interpretation"):
+                        st.write(f"Interpretation: {outcome.get('interpretation')}")
+        else:
+            st.info("No Outcome Measures Recorded Yet.")
     with tabs[2]:
         st.caption("Examples: Range Of Motion, Strength, Functional Mobility, Balance, Gait, Pain, Adherence.")
         if is_therapist:
@@ -745,10 +855,18 @@ def clinical_records(patient):
     with tabs[3]:
         if is_therapist:
             rag = api("GET", "/clinical-records/textbook-rag/status") or {}
-            st.caption(f"Textbook RAG: {rag.get('documents_found', 0)} Source Documents Found")
+            st.caption(f"Textbook RAG: {'Available' if rag.get('available') else 'Unavailable'} | Vectorstore Files: {rag.get('documents_found', 0)} | Groq Key: {'Loaded' if rag.get('groq_key_loaded') else 'Missing'}")
             source = st.text_area("Clinical Notes")
+            if st.button("Search Textbook Evidence"):
+                evidence = api("GET", "/clinical-records/textbook-rag/search", params={"q": source or patient.get("condition") or "rehabilitation precautions progression"}) or {}
+                for item in evidence.get("results", []):
+                    with st.expander(item.get("source", "Textbook Evidence"), expanded=False):
+                        st.write(item.get("excerpt"))
             if st.button("Generate AI Suggestion"):
-                api("POST", "/clinical-records/ai-suggestions", json={"patient_id": patient["id"], "request_type": "support", "source_text": source})
+                result = api("POST", "/clinical-records/ai-suggestions", json={"patient_id": patient["id"], "request_type": "support", "source_text": source})
+                if result:
+                    st.success("AI suggestion generated.")
+                    st.rerun()
         suggestions = api("GET", f"/clinical-records/ai-suggestions/patient/{patient['id']}") or []
         for item in suggestions:
             with st.expander(item.get("request_type", "AI Suggestion")):
@@ -811,7 +929,6 @@ def admin_research():
 
 def sidebar():
     with st.sidebar:
-        st.caption(f"API: {API}")
         current_language = st.session_state.get("language", "English")
         selected_language = st.selectbox("Language", LANGUAGES, index=LANGUAGES.index(current_language) if current_language in LANGUAGES else 0, key="language_picker")
         if selected_language != current_language:

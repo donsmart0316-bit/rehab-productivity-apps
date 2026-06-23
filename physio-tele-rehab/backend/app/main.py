@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
 from email.message import EmailMessage
+import ast
+from functools import lru_cache
 import json
 import os
 from pathlib import Path
@@ -39,6 +41,11 @@ ALGORITHM = "HS256"
 TRANSLATION_API_URL = os.getenv("TRANSLATION_API_URL", "").strip()
 TRANSLATION_API_KEY = os.getenv("TRANSLATION_API_KEY", "").strip()
 TRANSLATION_PROVIDER = os.getenv("TRANSLATION_PROVIDER", "mymemory").strip().lower()
+REPO_ROOT = BASE_DIR.parents[1]
+DEFAULT_TEXTBOOK_VECTORSTORE_PATH = BASE_DIR / "textbook_vectorstore"
+if not DEFAULT_TEXTBOOK_VECTORSTORE_PATH.exists():
+    DEFAULT_TEXTBOOK_VECTORSTORE_PATH = REPO_ROOT / "Exercise recommender" / "textbook_vectorstore"
+TEXTBOOK_VECTORSTORE_PATH = Path(os.getenv("TEXTBOOK_VECTORSTORE_PATH", DEFAULT_TEXTBOOK_VECTORSTORE_PATH))
 
 
 def env_secret(name: str, default: str = "") -> str:
@@ -115,6 +122,35 @@ def rows(sql: str, params: dict[str, Any] | None = None):
 def one(sql: str, params: dict[str, Any] | None = None):
     data = rows(sql, params)
     return data[0] if data else None
+
+
+def parse_metadata(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if not value:
+        return {}
+    text_value = str(value)
+    try:
+        parsed = json.loads(text_value)
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        pass
+    try:
+        parsed = ast.literal_eval(text_value)
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        return {}
+
+
+def file_response_from_metadata(metadata: Any):
+    parsed = parse_metadata(metadata)
+    path_value = parsed.get("path")
+    if not path_value:
+        raise HTTPException(status_code=404, detail="No Attachment File")
+    path = Path(path_value)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File Missing")
+    return FileResponse(path, filename=parsed.get("filename") or path.name, media_type=parsed.get("content_type"))
 
 
 def token_for(user: dict):
@@ -1190,7 +1226,18 @@ async def upload_message(patient_id: int = Form(...), message_type: str = Form("
 @app.get("/api/communications/patient/{patient_id}")
 def messages(patient_id: int, user: dict = Depends(current_user)):
     patient_access(patient_id, user)
-    return rows("SELECT * FROM communication_messages WHERE patient_id=:id ORDER BY created_at", {"id": patient_id})
+    return rows(
+        """
+        SELECT m.*, sender.full_name sender_name, sender.role sender_role, sender.clinical_role sender_clinical_role,
+               recipient.full_name recipient_name, recipient.role recipient_role
+        FROM communication_messages m
+        LEFT JOIN users sender ON sender.id=m.sender_id
+        LEFT JOIN users recipient ON recipient.id=m.recipient_id
+        WHERE m.patient_id=:id
+        ORDER BY m.created_at
+        """,
+        {"id": patient_id},
+    )
 
 
 @app.post("/api/communications/call")
@@ -1216,20 +1263,7 @@ def get_message_attachment(message_id: int, user: dict = Depends(current_user)):
     if not message:
         raise HTTPException(status_code=404, detail="Attachment Not Found")
     patient_access(message["patient_id"], user)
-    metadata = str(message.get("attachment_metadata") or "")
-    path_value = None
-    filename = None
-    for part in metadata.strip("{}").split(","):
-        if "'path':" in part or '"path":' in part:
-            path_value = part.split(":", 1)[1].strip().strip("'\"")
-        if "'filename':" in part or '"filename":' in part:
-            filename = part.split(":", 1)[1].strip().strip("'\"")
-    if not path_value:
-        raise HTTPException(status_code=404, detail="No Attachment File")
-    path = Path(path_value)
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="File Missing")
-    return FileResponse(path, filename=filename or path.name)
+    return file_response_from_metadata(message.get("attachment_metadata"))
 
 
 @app.get("/api/consents/required")
@@ -1400,7 +1434,25 @@ async def upload_medical_document(
 @app.get("/api/clinical-records/documents/patient/{patient_id}")
 def get_medical_documents(patient_id: int, user: dict = Depends(current_user)):
     patient_access(patient_id, user)
-    return rows("SELECT * FROM medical_documents WHERE patient_id=:id ORDER BY created_at DESC", {"id": patient_id})
+    return rows(
+        """
+        SELECT d.*, uploader.full_name uploaded_by_name
+        FROM medical_documents d
+        LEFT JOIN users uploader ON uploader.id=d.uploaded_by_user_id
+        WHERE d.patient_id=:id
+        ORDER BY d.created_at DESC
+        """,
+        {"id": patient_id},
+    )
+
+
+@app.get("/api/clinical-records/documents/{document_id}/file")
+def get_medical_document_file(document_id: int, user: dict = Depends(current_user)):
+    document = one("SELECT * FROM medical_documents WHERE id=:id", {"id": document_id})
+    if not document:
+        raise HTTPException(status_code=404, detail="Medical Document Not Found")
+    patient_access(document["patient_id"], user)
+    return file_response_from_metadata(document.get("file_metadata"))
 
 
 @app.get("/api/clinical-records/objective-progress/catalog")
@@ -1485,18 +1537,104 @@ def update_goal(goal_id: int, data: dict, user: dict = Depends(current_user)):
     return one("SELECT * FROM rehabilitation_goals WHERE id=:id", {"id": goal_id})
 
 
+def groq_api_key() -> str:
+    return (
+        env_secret("GROQ_API_KEY")
+        or env_secret("GROK_API_KEY")
+        or os.getenv("groq_api_key", "").strip()
+        or os.getenv("grok_api_key", "").strip()
+    )
+
+
+@lru_cache(maxsize=1)
+def textbook_vectorstore():
+    if not TEXTBOOK_VECTORSTORE_PATH.exists():
+        return None
+    try:
+        from langchain_community.vectorstores import FAISS
+        from langchain_huggingface import HuggingFaceEmbeddings
+
+        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        return FAISS.load_local(str(TEXTBOOK_VECTORSTORE_PATH), embeddings, allow_dangerous_deserialization=True)
+    except Exception:
+        return None
+
+
+def textbook_context(query: str, limit: int = 4) -> tuple[str, list[dict[str, str]]]:
+    vectorstore = textbook_vectorstore()
+    if vectorstore is None:
+        return "", []
+    docs = vectorstore.similarity_search(query or "physiotherapy rehabilitation precautions progression", k=limit)
+    references = []
+    chunks = []
+    for idx, doc in enumerate(docs, start=1):
+        source = str(doc.metadata.get("source") or doc.metadata.get("file_path") or f"Textbook excerpt {idx}")
+        page = doc.metadata.get("page")
+        label = f"{source}{f' page {page}' if page is not None else ''}"
+        text_value = re.sub(r"\s+", " ", doc.page_content or "").strip()
+        excerpt = text_value[:900]
+        references.append({"source": label, "excerpt": excerpt})
+        chunks.append(f"[{idx}] {label}\n{excerpt}")
+    return "\n\n".join(chunks), references
+
+
+def ai_clinical_suggestion(source: str, request_type: str) -> str:
+    context, references = textbook_context(source)
+    key = groq_api_key()
+    if key:
+        try:
+            from langchain_groq import ChatGroq
+
+            llm = ChatGroq(
+                model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
+                api_key=key,
+                temperature=0.2,
+                max_tokens=750,
+                timeout=30,
+                max_retries=1,
+            )
+            prompt = f"""
+You are a physiotherapy clinical support assistant for a licensed therapist.
+Use the therapist note and retrieved textbook context to draft concise clinical support.
+Do not diagnose beyond the supplied information. Include red flags, precautions, graded exercise ideas, outcome measures to monitor, and when to escalate to in-person/emergency care.
+Make clear that therapist judgement is required.
+
+REQUEST TYPE:
+{request_type}
+
+THERAPIST NOTE:
+{source[:2500]}
+
+RETRIEVED TEXTBOOK CONTEXT:
+{context[:4500] if context else "No local textbook context was retrieved."}
+"""
+            return llm.invoke(prompt).content
+        except Exception as exc:
+            return (
+                "AI Clinical Support could not call Groq successfully. "
+                f"{exc.__class__.__name__}: {str(exc)[:240]}\n\n"
+                + fallback_ai_suggestion(source, context, references)
+            )
+    return fallback_ai_suggestion(source, context, references)
+
+
+def fallback_ai_suggestion(source: str, context: str, references: list[dict[str, str]]) -> str:
+    evidence_note = "Local textbook RAG retrieved supporting context." if context else "No local textbook context was available."
+    excerpts = "\n".join(f"- {item['source']}: {item['excerpt'][:220]}" for item in references[:3])
+    return (
+        "AI Clinical Support: Review the patient presentation, screen for red flags, keep exercise dosage graded and pain-limited, "
+        "and monitor function, pain response, adherence, and adverse symptoms. Therapist approval is required before use.\n\n"
+        f"{evidence_note}\n{excerpts}\n\nInput Summary: {source[:500]}"
+    )
+
+
 @app.post("/api/clinical-records/ai-suggestions")
 def ai_suggest(data: dict, user: dict = Depends(current_user)):
     if user["role"] != "therapist":
         raise HTTPException(status_code=403, detail="Only Therapists Can Use The AI Clinical Assistant")
     patient_access(int(data["patient_id"]), user)
     source = data.get("source_text") or ""
-    suggestion = (
-        "AI Clinical Support: summarize key impairments, monitor red flags, and consider graded therapeutic exercise. "
-        "Evidence Reference: local textbook RAG/cited clinical guidelines should be reviewed. "
-        "Therapist Approval Required Before Use. "
-        f"Input Summary: {source[:500]}"
-    )
+    suggestion = ai_clinical_suggestion(source, data.get("request_type", "summary"))
     result = run(
         "INSERT INTO ai_clinical_suggestions(patient_id,therapist_id,request_type,source_text,suggestion,reviewed_by_therapist,approved,created_at) VALUES(:p,:t,:type,:source,:suggestion,0,0,:created)",
         {"p": data["patient_id"], "t": user["id"], "type": data.get("request_type", "summary"), "source": source, "suggestion": suggestion, "created": now()},
@@ -1550,24 +1688,21 @@ def get_discharge(patient_id: int, user: dict = Depends(current_user)):
 
 @app.get("/api/clinical-records/textbook-rag/status")
 def textbook_rag_status(user: dict = Depends(current_user)):
-    source = Path("c:/Users/USER/Desktop/Dr Zy py/python-projects/Gen-AI")
-    books = list(source.rglob("*.pdf")) + list(source.rglob("*.txt")) if source.exists() else []
-    return {"source_dir": str(source), "available": source.exists(), "documents_found": len(books), "lazy_indexing": True}
+    vectorstore = textbook_vectorstore()
+    files = list(TEXTBOOK_VECTORSTORE_PATH.glob("*")) if TEXTBOOK_VECTORSTORE_PATH.exists() else []
+    return {
+        "source_dir": str(TEXTBOOK_VECTORSTORE_PATH),
+        "available": vectorstore is not None,
+        "documents_found": len(files),
+        "groq_key_loaded": bool(groq_api_key()),
+        "lazy_indexing": False,
+    }
 
 
 @app.get("/api/clinical-records/textbook-rag/search")
 def textbook_rag_search(q: str, user: dict = Depends(current_user)):
-    source = Path("c:/Users/USER/Desktop/Dr Zy py/python-projects/Gen-AI")
-    results = []
-    if source.exists():
-        for path in list(source.rglob("*.txt"))[:20]:
-            try:
-                text_value = path.read_text(errors="ignore")
-            except Exception:
-                continue
-            if q.lower() in text_value.lower():
-                results.append({"source": str(path), "excerpt": text_value[:500]})
-    return {"query": q, "results": results[:5], "note": "Evidence Support Only. Therapist Approval Required."}
+    _context, references = textbook_context(q)
+    return {"query": q, "results": references, "note": "Evidence Support Only. Therapist Approval Required."}
 
 
 @app.post("/api/pose-feedback/analyze")
