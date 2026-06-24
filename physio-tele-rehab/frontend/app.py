@@ -1452,6 +1452,32 @@ def apply_theme():
             """,
             unsafe_allow_html=True,
         )
+    st.markdown(
+        """
+        <style>
+        .stApp section.ptr-hero .ptr-eyebrow {
+            color:#a7f3e7!important;
+            opacity:1!important;
+            filter:none!important;
+        }
+        .stApp section.ptr-hero h1,
+        .stApp section.ptr-hero h1 *,
+        .stApp section.ptr-hero p,
+        .stApp section.ptr-hero p * {
+            color:#ffffff!important;
+            opacity:1!important;
+            filter:none!important;
+            text-shadow:0 2px 14px rgba(0,0,0,.18);
+        }
+        .stApp section.ptr-hero a,
+        .stApp section.ptr-hero svg {
+            color:#ffffff!important;
+            fill:#ffffff!important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 st.set_page_config(page_title="Physio Tele-Rehab", layout="wide")
