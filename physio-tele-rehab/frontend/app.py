@@ -222,7 +222,8 @@ def headers():
 
 def api(method, path, **kwargs):
     try:
-        response = requests.request(method, f"{API}{path}", headers={**headers(), **kwargs.pop("headers", {})}, timeout=20, **kwargs)
+        request_timeout = kwargs.pop("timeout", 45)
+        response = requests.request(method, f"{API}{path}", headers={**headers(), **kwargs.pop("headers", {})}, timeout=request_timeout, **kwargs)
         try:
             payload = response.json() if response.text else {}
         except ValueError:
@@ -231,6 +232,8 @@ def api(method, path, **kwargs):
             return payload
         detail = payload.get("detail", response.text or f"HTTP {response.status_code}")
         st.error(detail)
+    except requests.Timeout:
+        st.error("Connection timed out. The server may still be waking up or sending email. Please wait a moment and try again.")
     except Exception as exc:
         st.error(f"Connection Error: {exc}")
     return None
@@ -554,6 +557,7 @@ def login_page():
                 email = st.text_input("Email")
                 phone = st.text_input("Phone Number")
                 password = st.text_input("New Password", type="password")
+                confirm_password = st.text_input("Confirm Password", type="password")
                 accepted = []
                 with st.expander("Terms, consent, and privacy", expanded=True):
                     for item in CONSENT_ITEMS:
@@ -569,7 +573,17 @@ def login_page():
                         if st.checkbox(f"I agree to the {item['title']}"):
                             accepted.append(item["type"])
                 if st.form_submit_button("Sign Up"):
-                    result = api("POST", "/auth/register", json={"full_name": full_name, "email": email, "phone_number": phone, "role": "patient", "clinical_role": None, "password": password, "accepted_consents": accepted})
+                    if not password:
+                        st.error("Enter a password.")
+                        result = None
+                    elif len(password) < 8:
+                        st.error("Password must be at least 8 characters.")
+                        result = None
+                    elif password != confirm_password:
+                        st.error("Passwords do not match.")
+                        result = None
+                    else:
+                        result = api("POST", "/auth/register", timeout=75, json={"full_name": full_name, "email": email, "phone_number": phone, "role": "patient", "clinical_role": None, "password": password, "accepted_consents": accepted})
                     if result:
                         if result.get("invitation_email_status"):
                             st.info(f"Invitation Email: {result.get('invitation_email_status')}")
