@@ -342,7 +342,11 @@ def auth_showcase():
         <section class="ptr-auth-stage">
             <div class="ptr-auth-copy">
                 <span>{ui_text("Physio Tele-Rehab")}</span>
-                <h1>{ui_text("Rehabilitation care, beautifully coordinated.")}</h1>
+                <h1 class="ptr-display-stack" aria-label="{ui_text('Move better. Recover closer.')}">
+                    <em class="ptr-display-mint">{ui_text("Move")}</em>
+                    <em class="ptr-display-paper">{ui_text("better.")}</em>
+                    <em class="ptr-display-coral">{ui_text("Recover closer.")}</em>
+                </h1>
                 <p>{ui_text("A secure workspace for therapist-led exercise plans, outcome tracking, clinical records, messages, appointments, and textbook-supported decisions.")}</p>
                 <div class="ptr-auth-badges">
                     <b>{ui_text("Therapist-reviewed plans")}</b>
@@ -1352,7 +1356,7 @@ def sidebar():
 def apply_theme():
     base_css = """
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650;9..144,750&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Fraunces:opsz,wght@9..144,650;9..144,750&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         :root {
             --ptr-navy:#08111f;
             --ptr-ink:#101828;
@@ -1362,14 +1366,14 @@ def apply_theme():
             --ptr-surface:#ffffff;
             --ptr-elevated:#ffffff;
             --ptr-line:#e6edf5;
-            --ptr-primary:#2f6fed;
-            --ptr-primary-dark:#1f4fb8;
-            --ptr-primary-soft:#edf4ff;
-            --ptr-teal:#14b8a6;
-            --ptr-teal-dark:#0f766e;
-            --ptr-teal-soft:#e7fbf7;
-            --ptr-blue:#2f6fed;
-            --ptr-blue-soft:#edf4ff;
+            --ptr-primary:#2458ff;
+            --ptr-primary-dark:#183ac9;
+            --ptr-primary-soft:#eef3ff;
+            --ptr-teal:#00b8a9;
+            --ptr-teal-dark:#087c72;
+            --ptr-teal-soft:#e5fffa;
+            --ptr-blue:#2458ff;
+            --ptr-blue-soft:#eef3ff;
             --ptr-green:#16a34a;
             --ptr-green-soft:#eefbf3;
             --ptr-amber:#f59e0b;
@@ -1378,8 +1382,11 @@ def apply_theme():
             --ptr-red-soft:#fff1f2;
             --ptr-lavender:#8b5cf6;
             --ptr-lavender-soft:#f5f3ff;
-            --ptr-coral:#ff6b6b;
-            --ptr-sky:#7dd3fc;
+            --ptr-coral:#ff4d6d;
+            --ptr-sky:#72ddf7;
+            --ptr-lime:#c6ff00;
+            --ptr-cream:#fff8e7;
+            --ptr-violet:#7c3aed;
         }
         html, body, .stApp, button, input, textarea, select {
             font-family: "Plus Jakarta Sans", "Inter", "Segoe UI", Arial, sans-serif!important;
@@ -1463,10 +1470,11 @@ def apply_theme():
             78%, 100% { transform: translateX(90%); }
         }
         .ptr-hero h1 {
-            font-family: "Fraunces", "Plus Jakarta Sans", serif!important;
+            font-family: "Archivo Black", "Bricolage Grotesque", "Plus Jakarta Sans", sans-serif!important;
             color: #fff!important;
             font-size: 3.25rem;
-            line-height: 1.05;
+            line-height: .94;
+            text-transform: uppercase;
             margin: .25rem 0 .75rem;
             letter-spacing: 0;
             text-shadow:
@@ -1529,7 +1537,6 @@ def apply_theme():
             margin-bottom: 1.3rem;
         }
         .ptr-auth-copy h1 {
-            font-family: "Fraunces", "Plus Jakarta Sans", serif!important;
             color:#ffffff!important;
             max-width: 760px;
             font-size: 5rem;
@@ -1542,10 +1549,59 @@ def apply_theme():
                 0 6px 0 rgba(5,15,27,.32),
                 0 26px 46px rgba(0,0,0,.42);
         }
+        .ptr-display-stack {
+            display:flex;
+            flex-direction:column;
+            gap:.15rem;
+            margin:.05rem 0 1.1rem!important;
+        }
+        .ptr-display-stack em {
+            display:block;
+            width:max-content;
+            max-width:100%;
+            font-family:"Archivo Black", "Bricolage Grotesque", "Plus Jakarta Sans", sans-serif!important;
+            font-style:normal;
+            font-size: clamp(3.4rem, 7.2vw, 6.9rem);
+            line-height:.82;
+            letter-spacing:0!important;
+            text-transform:uppercase;
+            padding:.02em .08em .08em;
+            border-radius: 14px;
+            transform: rotate(-1.2deg);
+            text-shadow:
+                0 2px 0 rgba(0,0,0,.22),
+                0 7px 0 rgba(0,0,0,.28),
+                0 28px 48px rgba(0,0,0,.4);
+        }
+        .ptr-display-stack em:nth-child(2) {
+            align-self:flex-start;
+            transform: rotate(.8deg) translateX(.45rem);
+        }
+        .ptr-display-stack em:nth-child(3) {
+            transform: rotate(-.4deg);
+            font-size: clamp(2.3rem, 4.6vw, 4.4rem);
+            line-height:.9;
+        }
+        .ptr-display-mint {
+            color:#08111f!important;
+            background: var(--ptr-lime);
+            box-shadow: 0 12px 0 #00b8a9, 0 30px 60px rgba(0,0,0,.3);
+        }
+        .ptr-display-paper {
+            color:#08111f!important;
+            background: #ffffff;
+            box-shadow: 0 12px 0 #72ddf7, 0 30px 60px rgba(0,0,0,.28);
+        }
+        .ptr-display-coral {
+            color:#ffffff!important;
+            background: var(--ptr-coral);
+            box-shadow: 0 10px 0 #7c3aed, 0 30px 60px rgba(0,0,0,.28);
+        }
         .ptr-auth-copy p {
             color:#d9e6f7!important;
             max-width: 650px;
-            font-size: 1.05rem;
+            font-family:"Bricolage Grotesque", "Plus Jakarta Sans", sans-serif!important;
+            font-size: 1.12rem;
             line-height: 1.65;
             margin: 0;
         }
@@ -1556,9 +1612,9 @@ def apply_theme():
             margin-top:1.45rem;
         }
         .ptr-auth-badges b {
-            color:#ffffff!important;
-            border:1px solid rgba(255,255,255,.22);
-            background: rgba(255,255,255,.11);
+            color:#08111f!important;
+            border:1px solid rgba(255,255,255,.4);
+            background: rgba(255,255,255,.82);
             backdrop-filter: blur(12px);
             border-radius:999px;
             padding:.55rem .78rem;
@@ -1594,9 +1650,9 @@ def apply_theme():
             margin-bottom:.45rem;
         }
         .ptr-auth-side-panel h3 {
-            font-family: "Fraunces", "Plus Jakarta Sans", serif!important;
+            font-family: "Bricolage Grotesque", "Plus Jakarta Sans", sans-serif!important;
             color: var(--ptr-text)!important;
-            font-size: 1.75rem;
+            font-size: 2rem;
             line-height:1.05;
             margin:.15rem 0 .7rem;
         }
@@ -1613,8 +1669,8 @@ def apply_theme():
             color: var(--ptr-text)!important;
             padding:.65rem .75rem;
             border-radius: 10px;
-            background: rgba(234,241,255,.9);
-            border:1px solid rgba(23,92,211,.12);
+            background: linear-gradient(90deg, #ffffff, #e5fffa);
+            border:1px solid rgba(0,184,169,.18);
         }
         .ptr-auth-visual {
             position:relative;
@@ -1685,6 +1741,7 @@ def apply_theme():
             margin-bottom:.4rem;
         }
         .ptr-chart-card strong {
+            font-family:"Archivo Black", "Plus Jakarta Sans", sans-serif!important;
             color:var(--ptr-text)!important;
             font-size:2.6rem;
             line-height:1;
@@ -1713,7 +1770,8 @@ def apply_theme():
         .ptr-plan-card strong {
             color:#fff!important;
             display:block;
-            font-size:1.45rem;
+            font-family:"Bricolage Grotesque", "Plus Jakarta Sans", sans-serif!important;
+            font-size:1.55rem;
             margin-bottom:.55rem;
         }
         .ptr-plan-card p {
@@ -1806,16 +1864,17 @@ def apply_theme():
         .ptr-stat strong {
             display:block;
             color: var(--ptr-text)!important;
-            font-size: 2rem;
+            font-family:"Archivo Black", "Plus Jakarta Sans", sans-serif!important;
+            font-size: 2.25rem;
             margin: .45rem 0 .2rem;
             line-height: 1.05;
         }
         .ptr-stat:before {
             content:"";
             display:block;
-            width: 38px;
-            height: 6px;
-            border-radius: 999px;
+            width: 46px;
+            height: 8px;
+            border-radius: 2px;
             margin-bottom: .75rem;
             background: var(--ptr-teal);
         }
@@ -1837,6 +1896,10 @@ def apply_theme():
             box-shadow: 0 18px 42px rgba(16, 24, 40, .09);
         }
         .ptr-card h3 { font-size: 1rem; margin:0 0 .35rem; color:var(--ptr-text)!important; }
+        .ptr-card h3,
+        .ptr-section-title {
+            font-family:"Bricolage Grotesque", "Plus Jakarta Sans", sans-serif!important;
+        }
         .ptr-card-teal { border-left: 5px solid var(--ptr-teal); }
         .ptr-card-blue { border-left: 5px solid var(--ptr-blue); }
         .ptr-card-neutral { border-left: 5px solid var(--ptr-line); }
@@ -2006,15 +2069,17 @@ def apply_theme():
             padding: .65rem .95rem;
         }
         .stButton > button, .stDownloadButton > button, [data-testid="stFormSubmitButton"] button {
-            border-radius: 8px!important;
-            border: 1px solid var(--ptr-primary)!important;
-            background: var(--ptr-primary)!important;
+            border-radius: 999px!important;
+            border: 1px solid rgba(8,17,31,.08)!important;
+            background: linear-gradient(135deg, var(--ptr-primary), var(--ptr-violet))!important;
             color: #fff!important;
             font-weight: 750!important;
+            box-shadow: 0 10px 24px rgba(36,88,255,.22)!important;
         }
         .stButton > button:hover, .stDownloadButton > button:hover, [data-testid="stFormSubmitButton"] button:hover {
-            background: var(--ptr-primary-dark)!important;
-            border-color: var(--ptr-primary-dark)!important;
+            background: linear-gradient(135deg, var(--ptr-primary-dark), #5b21b6)!important;
+            border-color: transparent!important;
+            transform: translateY(-1px);
         }
         input, textarea, [data-baseweb="select"] > div {
             border-radius: 8px!important;
@@ -2101,6 +2166,17 @@ def apply_theme():
             }
             .ptr-auth-copy h1 {
                 font-size: 2.7rem;
+            }
+            .ptr-display-stack em,
+            .ptr-display-stack em:nth-child(3) {
+                width:100%;
+                font-size: 2.25rem;
+                line-height:.92;
+                transform:none;
+                padding:.08em .1em .12em;
+            }
+            .ptr-display-stack em:nth-child(2) {
+                transform:none;
             }
             .ptr-auth-side-panel {
                 min-height: auto;
