@@ -1,4 +1,5 @@
 from datetime import date, datetime, time
+from html import escape
 import os
 
 import pandas as pd
@@ -312,70 +313,130 @@ def go(route):
     st.rerun()
 
 
+def ui_text(value):
+    return escape(str(t(value)))
+
+
+def raw_text(value):
+    return escape(str(value or ""))
+
+
+def page_header(title, subtitle="", eyebrow="Physio Tele-Rehab"):
+    st.markdown(
+        f"""
+        <section class="ptr-hero">
+            <div>
+                <div class="ptr-eyebrow">{ui_text(eyebrow)}</div>
+                <h1>{ui_text(title)}</h1>
+                <p>{ui_text(subtitle)}</p>
+            </div>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def stat_card(label, value, helper="", tone="teal"):
+    st.markdown(
+        f"""
+        <div class="ptr-stat ptr-{tone}">
+            <span>{ui_text(label)}</span>
+            <strong>{raw_text(value)}</strong>
+            <small>{ui_text(helper)}</small>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def info_card(title, body="", tone="neutral"):
+    st.markdown(
+        f"""
+        <div class="ptr-card ptr-card-{tone}">
+            <h3>{ui_text(title)}</h3>
+            <p>{ui_text(body)}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def status_pill(label, tone="teal"):
+    st.markdown(f"<span class='ptr-pill ptr-pill-{tone}'>{ui_text(label)}</span>", unsafe_allow_html=True)
+
+
 def login_page():
-    st.subheader("Login")
-    with st.form("login"):
-        identifier = st.text_input("Email / Phone / Patient ID")
-        password = st.text_input("Password", type="password")
-        if st.form_submit_button("Login"):
-            result = api("POST", "/auth/login", json={"identifier": identifier, "password": password})
-            if result:
-                st.session_state.token = result["access_token"]
-                st.session_state.role = result["role"]
-                st.session_state.clinical_role = result.get("clinical_role")
-                st.session_state.user_id = result.get("user_id")
-                st.session_state.email_verified = result.get("email_verified", True)
-                if result["role"] == "patient" and not st.session_state.email_verified:
+    page_header(
+        "Remote rehabilitation that feels close",
+        "Secure patient care, therapist workflows, outcome tracking, records, and textbook-grounded AI support.",
+        "Clinical workspace",
+    )
+    left, right = st.columns([1.05, 0.95], gap="large")
+    with left:
+        st.subheader("Login")
+        with st.form("login"):
+            identifier = st.text_input("Email / Phone / Patient ID")
+            password = st.text_input("Password", type="password")
+            if st.form_submit_button("Login"):
+                result = api("POST", "/auth/login", json={"identifier": identifier, "password": password})
+                if result:
+                    st.session_state.token = result["access_token"]
+                    st.session_state.role = result["role"]
+                    st.session_state.clinical_role = result.get("clinical_role")
+                    st.session_state.user_id = result.get("user_id")
+                    st.session_state.email_verified = result.get("email_verified", True)
+                    if result["role"] == "patient" and not st.session_state.email_verified:
+                        go("verify_email")
+                    else:
+                        go("patient" if result["role"] == "patient" else "therapist")
+
+        with st.expander("Forgot Password"):
+            reset_identifier = st.text_input("Email / Phone Number", key="reset_identifier_input")
+            if st.button("Send Reset Code"):
+                result = api("POST", "/auth/request-password-reset", json={"identifier": reset_identifier})
+                if result:
+                    st.session_state.reset_identifier_value = reset_identifier
+                    st.success(result.get("message", "Reset Code Sent."))
+                    if result.get("delivery_status"):
+                        st.info(f"{result.get('delivery_channel', '').title()} Delivery: {result.get('delivery_status')}")
+                    if result.get("delivery_detail"):
+                        st.caption(result.get("delivery_detail"))
+            reset_code = st.text_input("Reset Code")
+            new_password = st.text_input("New Password", type="password", key="reset_new_password")
+            confirm_password = st.text_input("Confirm New Password", type="password")
+            if st.button("Change Password"):
+                result = api("POST", "/auth/reset-password", json={"identifier": st.session_state.get("reset_identifier_value", reset_identifier), "code": reset_code, "new_password": new_password, "confirm_password": confirm_password})
+                if result:
+                    st.success("Password Changed. You Can Login Now.")
+
+    with right:
+        st.subheader("Create Account")
+        with st.form("register"):
+            full_name = st.text_input("Full Name")
+            email = st.text_input("Email")
+            phone = st.text_input("Phone Number")
+            password = st.text_input("New Password", type="password")
+            accepted = []
+            for item in CONSENT_ITEMS:
+                st.markdown(f"#### {item['title']}")
+                st.write(item["content"])
+                if st.checkbox(f"I Have Read And Agree To The {item['title']}"):
+                    accepted.append(item["type"])
+            if st.form_submit_button("Sign Up"):
+                result = api("POST", "/auth/register", json={"full_name": full_name, "email": email, "phone_number": phone, "role": "patient", "clinical_role": None, "password": password, "accepted_consents": accepted})
+                if result:
+                    if result.get("invitation_email_status"):
+                        st.info(f"Invitation Email: {result.get('invitation_email_status')}")
+                    if result.get("verification_email_status"):
+                        st.info(f"Verification Email: {result.get('verification_email_status')}")
+                    st.session_state.last_verification_email_status = result.get("verification_email_status")
+                    st.session_state.last_verification_email_detail = result.get("verification_email_detail")
+                    st.session_state.token = result["access_token"]
+                    st.session_state.role = result["role"]
+                    st.session_state.clinical_role = result.get("clinical_role")
+                    st.session_state.user_id = result.get("user_id")
+                    st.session_state.email_verified = result.get("email_verified", False)
                     go("verify_email")
-                else:
-                    go("patient" if result["role"] == "patient" else "therapist")
-
-    with st.expander("Forgot Password"):
-        reset_identifier = st.text_input("Email / Phone Number", key="reset_identifier_input")
-        if st.button("Send Reset Code"):
-            result = api("POST", "/auth/request-password-reset", json={"identifier": reset_identifier})
-            if result:
-                st.session_state.reset_identifier_value = reset_identifier
-                st.success(result.get("message", "Reset Code Sent."))
-                if result.get("delivery_status"):
-                    st.info(f"{result.get('delivery_channel', '').title()} Delivery: {result.get('delivery_status')}")
-                if result.get("delivery_detail"):
-                    st.caption(result.get("delivery_detail"))
-        reset_code = st.text_input("Reset Code")
-        new_password = st.text_input("New Password", type="password", key="reset_new_password")
-        confirm_password = st.text_input("Confirm New Password", type="password")
-        if st.button("Change Password"):
-            result = api("POST", "/auth/reset-password", json={"identifier": st.session_state.get("reset_identifier_value", reset_identifier), "code": reset_code, "new_password": new_password, "confirm_password": confirm_password})
-            if result:
-                st.success("Password Changed. You Can Login Now.")
-
-    st.subheader("Create Account")
-    with st.form("register"):
-        full_name = st.text_input("Full Name")
-        email = st.text_input("Email")
-        phone = st.text_input("Phone Number")
-        password = st.text_input("New Password", type="password")
-        accepted = []
-        for item in CONSENT_ITEMS:
-            st.markdown(f"#### {item['title']}")
-            st.write(item["content"])
-            if st.checkbox(f"I Have Read And Agree To The {item['title']}"):
-                accepted.append(item["type"])
-        if st.form_submit_button("Sign Up"):
-            result = api("POST", "/auth/register", json={"full_name": full_name, "email": email, "phone_number": phone, "role": "patient", "clinical_role": None, "password": password, "accepted_consents": accepted})
-            if result:
-                if result.get("invitation_email_status"):
-                    st.info(f"Invitation Email: {result.get('invitation_email_status')}")
-                if result.get("verification_email_status"):
-                    st.info(f"Verification Email: {result.get('verification_email_status')}")
-                st.session_state.last_verification_email_status = result.get("verification_email_status")
-                st.session_state.last_verification_email_detail = result.get("verification_email_detail")
-                st.session_state.token = result["access_token"]
-                st.session_state.role = result["role"]
-                st.session_state.clinical_role = result.get("clinical_role")
-                st.session_state.user_id = result.get("user_id")
-                st.session_state.email_verified = result.get("email_verified", False)
-                go("verify_email")
 
 
 def verify_email_page():
@@ -481,35 +542,51 @@ def contact_settings(profile):
 
 
 def patient_dashboard():
-    st.title(t("Patient Dashboard"))
     profile = api("GET", "/patients/me/profile")
     if not profile:
+        page_header("Patient Onboarding", "Finish your profile so your therapist can personalize your rehab plan.")
         st.info("Complete Onboarding First.")
         if st.button("Go To Onboarding"):
             go("onboarding")
         return
-    st.write(f"Patient ID: {profile.get('patient_identifier')}")
-    st.write(f"Status: {profile.get('patient_status')}")
+    page_header(
+        "Patient Dashboard",
+        f"{profile.get('full_name') or 'Welcome back'} · {profile.get('patient_status') or 'Active rehab program'}",
+        f"Patient ID: {profile.get('patient_identifier') or 'Pending'}",
+    )
     dashboard_notifications()
-    contact_settings(profile)
-    tabs = st.tabs(["Exercises", "Session Log", "Progress", "Messages", "Appointments", "Clinical Records", "AI Pose Feedback"])
+    progress = api("GET", "/progress/me") or {}
+    plans = api("GET", "/exercise-plans/my-plans") or []
+    documents = api("GET", f"/clinical-records/documents/patient/{profile['id']}") or []
+    outcomes = api("GET", f"/clinical-records/outcome-measures/patient/{profile['id']}") or []
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        stat_card("Total sessions", progress.get("total_sessions", 0), "Logged rehabilitation sessions", "blue")
+    with c2:
+        stat_card("Average pain change", progress.get("average_pain_change", 0), "Before versus after exercise", "green")
+    with c3:
+        stat_card("Active plans", len(plans), "Therapist-assigned plans", "teal")
+    with c4:
+        stat_card("Clinical documents", len(documents), "Shared with your therapist", "amber")
+    tabs = st.tabs(["My Plan", "Session Log", "Progress", "Messages", "Appointments", "Clinical Records", "AI Pose Feedback", "Settings"])
     with tabs[0]:
-        plans = api("GET", "/exercise-plans/my-plans") or []
         library = {item["id"]: item for item in (api("GET", "/exercises/") or [])}
         if not plans:
-            st.info("No Exercise Plan Assigned Yet.")
+            info_card("No exercise plan assigned yet", "Your therapist will assign exercises, dosage, safety notes, and progression here.")
         for plan in plans:
             with st.expander(plan.get("title", "Exercise Plan"), expanded=True):
-                st.write(f"Frequency Per Week: {plan.get('frequency_per_week')}")
-                st.write(f"Duration Weeks: {plan.get('duration_weeks')}")
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Frequency Per Week", plan.get("frequency_per_week"))
+                c2.metric("Duration Weeks", plan.get("duration_weeks"))
+                c3.metric("Assigned Exercises", len(str(plan.get("exercise_prescriptions") or "").split(",")) if plan.get("exercise_prescriptions") else 0)
                 st.write(f"Clinical Notes: {plan.get('clinical_notes') or ''}")
                 st.write(f"Progression: {plan.get('progression_notes') or ''}")
                 prescriptions = str(plan.get("exercise_prescriptions") or "")
                 selected_names = [exercise["name"] for exercise_id, exercise in library.items() if str(exercise_id) in prescriptions]
                 if selected_names:
-                    st.write("Assigned Exercises")
+                    st.markdown("#### Assigned Exercises")
                     for name in selected_names:
-                        st.write(f"- {name}")
+                        status_pill(name, "teal")
     with tabs[1]:
         exercises = api("GET", "/exercises/") or []
         exercise_id = st.selectbox("Exercise", [x["id"] for x in exercises], format_func=lambda i: next((x["name"] for x in exercises if x["id"] == i), i)) if exercises else 1
@@ -521,9 +598,9 @@ def patient_dashboard():
             if st.form_submit_button("Save Session"):
                 api("POST", "/session-logs/", json={"patient_id": profile["id"], "exercise_id": exercise_id, "pain_before": pain_before, "pain_after": pain_after, "adherence": adherence, "patient_feedback": notes})
     with tabs[2]:
-        progress = api("GET", "/progress/me") or {}
-        st.metric("Total Sessions", progress.get("total_sessions", 0))
-        st.metric("Average Pain Change", progress.get("average_pain_change", 0))
+        c1, c2 = st.columns(2)
+        c1.metric("Total Sessions", progress.get("total_sessions", 0))
+        c2.metric("Average Pain Change", progress.get("average_pain_change", 0))
         if progress.get("logs"):
             st.line_chart(pd.DataFrame(progress["logs"])[["pain_before", "pain_after", "adherence"]])
     with tabs[3]:
@@ -534,24 +611,37 @@ def patient_dashboard():
         clinical_records(profile)
     with tabs[6]:
         pose_feedback()
+    with tabs[7]:
+        contact_settings(profile)
 
 
 def therapist_dashboard():
-    st.title(t("Therapist Dashboard"))
+    page_header("Therapist Dashboard", "Clinical review queue, patient monitoring, records, messaging, and evidence-supported decisions.", "Therapist workspace")
     dashboard_notifications()
     patients = api("GET", "/therapist/patients") or []
     unassigned = api("GET", "/therapist-assignments/unassigned-patients") or []
-    st.metric("Assigned Patients", len(patients))
-    st.metric("Unassigned Queue", len(unassigned))
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        stat_card("Assigned Patients", len(patients), "Currently under your care", "teal")
+    with c2:
+        stat_card("Unassigned Queue", len(unassigned), "Patients waiting for therapist", "amber")
+    with c3:
+        stat_card("Clinical Alerts", "Scan", "Use the alerts tab to refresh", "red")
+    with c4:
+        stat_card("AI + RAG", "Ready", "Textbook evidence workflow", "blue")
     tabs = st.tabs(["Patients", "Queue", "Assessment", "Plan Builder", "Clinical Records", "Messages", "Appointments", "Exercise Library", "Coverage", "Video Consult", "Alerts", "Audit Logs", "Admin Research"])
     with tabs[0]:
-        st.dataframe(pd.DataFrame(patients), use_container_width=True)
+        if patients:
+            st.dataframe(pd.DataFrame(patients), use_container_width=True)
+        else:
+            info_card("No assigned patients yet", "Claim a patient from the queue or wait for assignment.")
     with tabs[1]:
         for patient in unassigned:
-            st.write(patient.get("full_name"))
-            if st.button("Claim Patient", key=f"claim_{patient['id']}"):
-                api("POST", "/therapist-assignments/assign-therapist", json={"patient_id": patient["id"], "role": "primary"})
-                st.rerun()
+            with st.container(border=True):
+                st.write(patient.get("full_name"))
+                if st.button("Claim Patient", key=f"claim_{patient['id']}"):
+                    api("POST", "/therapist-assignments/assign-therapist", json={"patient_id": patient["id"], "role": "primary"})
+                    st.rerun()
     selected = select_patient(patients)
     if not selected:
         return
@@ -657,6 +747,7 @@ def appointments_page(patient):
 
 
 def message_box(patient_id):
+    st.markdown("#### Care Team Messages")
     col1, col2 = st.columns(2)
     if col1.button("Start Video Call", key=f"video_call_{patient_id}"):
         result = api("POST", "/communications/call", json={"patient_id": patient_id, "call_type": "video"})
@@ -689,8 +780,16 @@ def message_box(patient_id):
     messages = api("GET", f"/communications/patient/{patient_id}") or []
     for msg in messages:
         sender = message_sender_label(msg)
+        mine = msg.get("sender_id") == st.session_state.get("user_id")
+        bubble_class = "ptr-message mine" if mine else "ptr-message"
+        st.markdown(
+            f"""
+            <div class="{bubble_class}">
+                <div class="ptr-message-meta">{raw_text(sender)} · {raw_text(str(msg.get('message_type')).title())} · {raw_text(format_dt(msg.get('created_at')))}</div>
+            """,
+            unsafe_allow_html=True,
+        )
         with st.container():
-            st.caption(f"{sender} - {str(msg.get('message_type')).title()} - {format_dt(msg.get('created_at'))}")
             content = msg.get("content") or ""
             call_url = metadata_value(msg.get("attachment_metadata"), "call_url")
             if call_url:
@@ -710,6 +809,7 @@ def message_box(patient_id):
                         st.audio(blob)
                     else:
                         st.download_button("Download Attachment", blob, metadata_value(msg.get("attachment_metadata"), "filename") or "attachment")
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def exercise_library():
@@ -788,32 +888,42 @@ def pose_feedback():
 
 def clinical_records(patient):
     is_therapist = st.session_state.role in ["therapist", "admin"]
+    st.markdown("#### Clinical Records")
+    st.caption("Documents, outcome measures, objective progress, discharge summaries, and textbook-supported AI notes.")
     tab_names = ["Documents", "Outcome Measures", "Objective Progress", "AI Notes", "Discharge"]
     if is_therapist:
         tab_names.append("Permanent Record")
     tabs = st.tabs(tab_names)
     with tabs[0]:
         if st.session_state.role == "patient":
-            doc_type = st.selectbox("Document Type", ["MRI Report", "X-Ray", "CT Scan", "Referral Letter", "Laboratory Report", "Clinical Photograph", "Other"])
-            title = st.text_input("Document Title")
-            description = st.text_area("Document Description")
-            upload = st.file_uploader("Upload Medical Document")
-            if upload and st.button("Save Medical Document"):
-                files = {"file": (upload.name, upload.getvalue(), upload.type or "application/octet-stream")}
-                result = api("POST", "/clinical-records/documents/upload", data={"patient_id": str(patient["id"]), "document_type": doc_type, "title": title or upload.name, "description": description or ""}, files=files)
-                if result:
-                    st.success("Medical Document Uploaded.")
-                    st.rerun()
+            with st.container(border=True):
+                st.markdown("##### Upload document")
+                c1, c2 = st.columns(2)
+                with c1:
+                    doc_type = st.selectbox("Document Type", ["MRI Report", "X-Ray", "CT Scan", "Referral Letter", "Laboratory Report", "Clinical Photograph", "Other"])
+                    title = st.text_input("Document Title")
+                with c2:
+                    description = st.text_area("Document Description")
+                    upload = st.file_uploader("Upload Medical Document")
+                if upload and st.button("Save Medical Document"):
+                    files = {"file": (upload.name, upload.getvalue(), upload.type or "application/octet-stream")}
+                    result = api("POST", "/clinical-records/documents/upload", data={"patient_id": str(patient["id"]), "document_type": doc_type, "title": title or upload.name, "description": description or ""}, files=files)
+                    if result:
+                        st.success("Medical Document Uploaded.")
+                        st.rerun()
         else:
-            st.info("Patients Upload MRI, CT, X-Ray, Lab, Referral, And Photo Documents Here. Therapists Can View Them.")
+            info_card("Patient-uploaded documents", "View and download MRI, CT, X-Ray, lab, referral, image, and other clinical files.")
         documents = api("GET", f"/clinical-records/documents/patient/{patient['id']}") or []
         if documents:
             for document in documents:
                 title = document.get("title") or metadata_value(document.get("file_metadata"), "filename") or "Medical Document"
-                with st.expander(f"{title} - {document.get('document_type', 'Document')}", expanded=False):
+                with st.expander(f"{title} - {document.get('document_type', 'Document')}", expanded=True if is_therapist else False):
+                    c1, c2, c3 = st.columns([1.2, 1, 1])
+                    c1.metric("Document Type", document.get("document_type", "Document"))
+                    c2.metric("Uploaded By", document.get("uploaded_by_name") or "Patient")
+                    c3.metric("Uploaded", format_dt(document.get("created_at")) or "Unknown")
                     if document.get("description"):
                         st.write(document.get("description"))
-                    st.caption(f"Uploaded by {document.get('uploaded_by_name') or 'patient'} on {format_dt(document.get('created_at'))}")
                     render_document_file(document)
         else:
             st.info("No Medical Documents Uploaded Yet.")
@@ -830,10 +940,13 @@ def clinical_records(patient):
         outcomes = api("GET", f"/clinical-records/outcome-measures/patient/{patient['id']}") or []
         if outcomes:
             for outcome in outcomes:
-                with st.expander(f"{outcome.get('measure_name')} - {outcome.get('score')}/{outcome.get('max_score')}", expanded=False):
-                    st.write(f"Measured: {format_dt(outcome.get('measured_at'))}")
+                with st.expander(f"{outcome.get('measure_name')} - {outcome.get('score')}/{outcome.get('max_score')}", expanded=True):
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric("Score", outcome.get("score"))
+                    c2.metric("Max Score", outcome.get("max_score"))
+                    c3.metric("Measured", format_dt(outcome.get("measured_at")) or "")
                     if outcome.get("interpretation"):
-                        st.write(f"Interpretation: {outcome.get('interpretation')}")
+                        info_card("Therapist interpretation", outcome.get("interpretation"), "teal")
         else:
             st.info("No Outcome Measures Recorded Yet.")
     with tabs[2]:
@@ -855,7 +968,13 @@ def clinical_records(patient):
     with tabs[3]:
         if is_therapist:
             rag = api("GET", "/clinical-records/textbook-rag/status") or {}
-            st.caption(f"Textbook RAG: {'Available' if rag.get('available') else 'Unavailable'} | Vectorstore Files: {rag.get('documents_found', 0)} | Groq Key: {'Loaded' if rag.get('groq_key_loaded') else 'Missing'}")
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                stat_card("Textbook RAG", "Available" if rag.get("available") else "Unavailable", "Evidence retrieval", "teal" if rag.get("available") else "amber")
+            with c2:
+                stat_card("Vectorstore Files", rag.get("documents_found", 0), "FAISS resources found", "blue")
+            with c3:
+                stat_card("Groq Key", "Loaded" if rag.get("groq_key_loaded") else "Missing", "LLM generation", "green" if rag.get("groq_key_loaded") else "red")
             source = st.text_area("Clinical Notes")
             if st.button("Search Textbook Evidence"):
                 evidence = api("GET", "/clinical-records/textbook-rag/search", params={"q": source or patient.get("condition") or "rehabilitation precautions progression"}) or {}
@@ -870,7 +989,7 @@ def clinical_records(patient):
         suggestions = api("GET", f"/clinical-records/ai-suggestions/patient/{patient['id']}") or []
         for item in suggestions:
             with st.expander(item.get("request_type", "AI Suggestion")):
-                st.write(item.get("suggestion"))
+                info_card("AI clinical suggestion", item.get("suggestion"), "blue")
                 if is_therapist:
                     col1, col2 = st.columns(2)
                     if col1.button("Approve", key=f"approve_ai_{item['id']}"):
@@ -929,13 +1048,14 @@ def admin_research():
 
 def sidebar():
     with st.sidebar:
+        st.markdown("<div class='ptr-sidebar-brand'>Physio Tele-Rehab<span>Clinical workspace</span></div>", unsafe_allow_html=True)
         current_language = st.session_state.get("language", "English")
         selected_language = st.selectbox("Language", LANGUAGES, index=LANGUAGES.index(current_language) if current_language in LANGUAGES else 0, key="language_picker")
         if selected_language != current_language:
             st.session_state.language = selected_language
             st.rerun()
         st.radio("Theme", ["Bright", "Dark"], key="theme", format_func=t)
-        st.title(t("Navigation"))
+        st.markdown("#### " + t("Navigation"))
         if st.session_state.token:
             if st.session_state.role == "patient" and st.button(t("Patient Dashboard")):
                 go("patient")
@@ -949,11 +1069,194 @@ def sidebar():
 
 
 def apply_theme():
+    base_css = """
+        <style>
+        :root {
+            --ptr-navy:#0d1b2f;
+            --ptr-text:#111827;
+            --ptr-muted:#64748b;
+            --ptr-bg:#f6f8fb;
+            --ptr-surface:#ffffff;
+            --ptr-line:#dbe3ec;
+            --ptr-teal:#0a7c7c;
+            --ptr-teal-dark:#065d5d;
+            --ptr-teal-soft:#e0f5f1;
+            --ptr-blue:#2563eb;
+            --ptr-blue-soft:#dfeaff;
+            --ptr-green:#0ea66a;
+            --ptr-green-soft:#def8eb;
+            --ptr-amber:#d97706;
+            --ptr-amber-soft:#fff1c7;
+            --ptr-red:#dc2626;
+            --ptr-red-soft:#fee2e2;
+        }
+        .block-container { padding-top: 1.4rem; max-width: 1440px; }
+        [data-testid="stSidebar"] {
+            background: var(--ptr-navy)!important;
+            border-right: 1px solid rgba(255,255,255,.08);
+        }
+        [data-testid="stSidebar"] * { color: #e5edf7!important; }
+        .ptr-sidebar-brand {
+            font-weight: 800;
+            font-size: 1.1rem;
+            line-height: 1.15;
+            padding: .85rem .65rem 1rem;
+            margin-bottom: .4rem;
+            border-bottom: 1px solid rgba(255,255,255,.12);
+        }
+        .ptr-sidebar-brand span {
+            display:block;
+            margin-top:.35rem;
+            font-size:.76rem;
+            font-weight:500;
+            color:#aebbd0!important;
+        }
+        .ptr-hero {
+            background: linear-gradient(135deg, #0d1b2f 0%, #0a585f 100%);
+            color: #fff;
+            padding: 2rem 2.2rem;
+            border-radius: 12px;
+            margin: .25rem 0 1.25rem;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, .18);
+        }
+        .ptr-hero h1 {
+            color: #fff!important;
+            font-size: clamp(2rem, 4vw, 3.3rem);
+            line-height: 1.05;
+            margin: .25rem 0 .75rem;
+            letter-spacing: 0;
+        }
+        .ptr-hero p {
+            color: #d8e7ef!important;
+            max-width: 820px;
+            font-size: 1.03rem;
+            margin: 0;
+        }
+        .ptr-eyebrow {
+            color:#9de2d6!important;
+            text-transform: uppercase;
+            font-size:.78rem;
+            letter-spacing:.08em;
+            font-weight:800;
+        }
+        .ptr-stat {
+            min-height: 132px;
+            padding: 1rem;
+            border-radius: 10px;
+            background: var(--ptr-surface);
+            border: 1px solid var(--ptr-line);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
+            margin-bottom: 1rem;
+        }
+        .ptr-stat span, .ptr-card p, .ptr-stat small { color: var(--ptr-muted)!important; }
+        .ptr-stat strong {
+            display:block;
+            color: var(--ptr-text)!important;
+            font-size: 2rem;
+            margin: .45rem 0 .2rem;
+            line-height: 1.05;
+        }
+        .ptr-stat:before {
+            content:"";
+            display:block;
+            width: 38px;
+            height: 6px;
+            border-radius: 999px;
+            margin-bottom: .75rem;
+            background: var(--ptr-teal);
+        }
+        .ptr-blue:before { background: var(--ptr-blue); }
+        .ptr-green:before { background: var(--ptr-green); }
+        .ptr-amber:before { background: var(--ptr-amber); }
+        .ptr-red:before { background: var(--ptr-red); }
+        .ptr-card {
+            background: var(--ptr-surface);
+            border: 1px solid var(--ptr-line);
+            border-radius: 10px;
+            padding: 1rem 1.1rem;
+            margin: .65rem 0;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .05);
+        }
+        .ptr-card h3 { font-size: 1rem; margin:0 0 .35rem; color:var(--ptr-text)!important; }
+        .ptr-card-teal { border-left: 5px solid var(--ptr-teal); }
+        .ptr-card-blue { border-left: 5px solid var(--ptr-blue); }
+        .ptr-card-neutral { border-left: 5px solid var(--ptr-line); }
+        .ptr-pill {
+            display:inline-flex;
+            align-items:center;
+            min-height: 30px;
+            padding:.35rem .7rem;
+            border-radius:999px;
+            font-weight:700;
+            font-size:.82rem;
+            margin:.25rem .35rem .25rem 0;
+            border:1px solid transparent;
+        }
+        .ptr-pill-teal { background:var(--ptr-teal-soft); color:var(--ptr-teal-dark)!important; }
+        .ptr-pill-blue { background:var(--ptr-blue-soft); color:var(--ptr-blue)!important; }
+        .ptr-pill-green { background:var(--ptr-green-soft); color:var(--ptr-green)!important; }
+        .ptr-pill-amber { background:var(--ptr-amber-soft); color:var(--ptr-amber)!important; }
+        .ptr-pill-red { background:var(--ptr-red-soft); color:var(--ptr-red)!important; }
+        .ptr-message {
+            background: var(--ptr-surface);
+            border: 1px solid var(--ptr-line);
+            border-radius: 10px;
+            padding: .8rem 1rem;
+            margin: .7rem 0;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, .04);
+        }
+        .ptr-message.mine {
+            background: var(--ptr-teal-soft);
+            border-color: rgba(10,124,124,.22);
+        }
+        .ptr-message-meta {
+            color: var(--ptr-muted)!important;
+            font-size:.78rem;
+            font-weight:800;
+            margin-bottom:.35rem;
+        }
+        div[data-testid="stForm"], div[data-testid="stExpander"], div[data-testid="stVerticalBlockBorderWrapper"] {
+            border-radius: 10px!important;
+            border-color: var(--ptr-line)!important;
+        }
+        .stTabs [data-baseweb="tab-list"] {
+            gap: .25rem;
+            border-bottom: 1px solid var(--ptr-line);
+        }
+        .stTabs [data-baseweb="tab"] {
+            border-radius: 8px 8px 0 0;
+            padding: .65rem .95rem;
+        }
+        .stButton > button, .stDownloadButton > button, [data-testid="stFormSubmitButton"] button {
+            border-radius: 8px!important;
+            border: 1px solid var(--ptr-teal)!important;
+            background: var(--ptr-teal)!important;
+            color: #fff!important;
+            font-weight: 750!important;
+        }
+        .stButton > button:hover, .stDownloadButton > button:hover, [data-testid="stFormSubmitButton"] button:hover {
+            background: var(--ptr-teal-dark)!important;
+            border-color: var(--ptr-teal-dark)!important;
+        }
+        input, textarea, [data-baseweb="select"] > div {
+            border-radius: 8px!important;
+        }
+        h1, h2, h3 { letter-spacing: 0!important; }
+        </style>
+    """
+    st.markdown(base_css, unsafe_allow_html=True)
     if st.session_state.theme == "Dark":
         st.markdown(
             """
             <style>
             :root { color-scheme: dark; }
+            :root {
+                --ptr-bg:#0f172a;
+                --ptr-surface:#111827;
+                --ptr-line:#334155;
+                --ptr-text:#e5e7eb;
+                --ptr-muted:#b6c2d1;
+            }
             .stApp, [data-testid="stAppViewContainer"], [data-testid="stSidebar"], [data-testid="stHeader"] {
                 background:#0f172a!important; color:#e5e7eb!important;
             }
@@ -998,7 +1301,6 @@ init_state()
 patch_streamlit_text()
 apply_theme()
 sidebar()
-st.title(t("Physio Tele-Rehab Platform"))
 
 if st.session_state.get("token") and st.session_state.get("role") == "patient" and st.session_state.route in ["patient", "onboarding"]:
     verification = api("GET", "/auth/email-verification/status") or {}
