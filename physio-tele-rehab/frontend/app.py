@@ -606,6 +606,7 @@ def patient_dashboard():
         f"Patient ID: {profile.get('patient_identifier') or 'Pending'}",
     )
     globals()["page_header"] = original_page_header
+    patient_dashboard_header(profile)
     dashboard_notifications()
     progress = api("GET", "/progress/me") or {}
     plans = api("GET", "/exercise-plans/my-plans") or []
@@ -679,7 +680,6 @@ def patient_dashboard():
     elif selected_view == "Clinical Records":
         clinical_records(profile)
     elif selected_view == "AI Pose Feedback":
-        st.info("Camera access is requested only on this screen because live pose feedback needs a camera image.")
         pose_feedback()
     elif selected_view == "Settings":
         contact_settings(profile)
@@ -1459,7 +1459,28 @@ def apply_theme():
         }
         div[role="radiogroup"] label {
             border-radius: 8px;
-            padding: .35rem .55rem;
+            padding: .5rem .7rem;
+            transition: background .16s ease, transform .16s ease, box-shadow .16s ease;
+        }
+        div[role="radiogroup"] label:hover {
+            background: #eef4ff;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(16, 24, 40, .06);
+        }
+        div[role="radiogroup"] label:has(input:checked) {
+            background: linear-gradient(180deg, #eef4ff, #ffffff);
+            box-shadow: inset 0 -2px 0 var(--ptr-primary), 0 10px 22px rgba(23,92,211,.10);
+        }
+        [data-testid="stSidebar"] div[role="radiogroup"] {
+            background: transparent!important;
+            border: 0!important;
+            box-shadow: none!important;
+            padding: 0!important;
+        }
+        [data-testid="stSidebar"] div[role="radiogroup"] label {
+            background: transparent!important;
+            box-shadow: none!important;
+            transform: none!important;
         }
         div[data-testid="stForm"], div[data-testid="stExpander"], div[data-testid="stVerticalBlockBorderWrapper"] {
             border-radius: 10px!important;
