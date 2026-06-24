@@ -303,7 +303,7 @@ def render_document_file(document):
 
 
 def init_state():
-    defaults = {"token": None, "role": None, "clinical_role": None, "route": "login", "language": "English", "theme": "Bright", "translation_cache": {}, "auth_mode": "login"}
+    defaults = {"token": None, "role": None, "clinical_role": None, "route": "login", "language": "English", "theme": "Bright", "translation_cache": {}, "auth_mode": "login", "patient_view": "My Plan"}
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
 
@@ -318,7 +318,7 @@ def ui_text(value):
 
 
 def raw_text(value):
-    return escape(str(value or ""))
+    return escape("" if value is None else str(value))
 
 
 def page_header(title, subtitle="", eyebrow="Physio Tele-Rehab"):
@@ -346,6 +346,36 @@ def stat_card(label, value, helper="", tone="teal"):
         </div>
         """,
         unsafe_allow_html=True,
+    )
+
+
+def dashboard_action(label, view_name):
+    if st.button(label, key=f"open_patient_{view_name}"):
+        st.session_state.patient_view = view_name
+        st.rerun()
+
+
+def time_greeting():
+    hour = datetime.now().hour
+    if hour < 12:
+        return "Good morning"
+    if hour < 17:
+        return "Good afternoon"
+    return "Good evening"
+
+
+def display_name(name):
+    return str(name or "Patient").strip().upper()
+
+
+def patient_dashboard_header(profile):
+    status = str(profile.get("patient_status") or "").replace("_", " ").strip()
+    status_text = f" · {status.title()}" if status and status.lower() not in {"active", "active rehab program"} else ""
+    status_text = f" - {status.title()}" if status and status.lower() not in {"active", "active rehab program"} else ""
+    page_header(
+        f"{time_greeting()}, {display_name(profile.get('full_name'))}",
+        f"Your rehabilitation workspace is ready{status_text}.",
+        f"Patient ID: {profile.get('patient_identifier') or 'Pending'}",
     )
 
 
@@ -567,11 +597,15 @@ def patient_dashboard():
         if st.button("Go To Onboarding"):
             go("onboarding")
         return
+    original_page_header = globals()["page_header"]
+    globals()["page_header"] = lambda *args, **kwargs: None
+    patient_dashboard_header(profile)
     page_header(
         "Patient Dashboard",
         f"{profile.get('full_name') or 'Welcome back'} · {profile.get('patient_status') or 'Active rehab program'}",
         f"Patient ID: {profile.get('patient_identifier') or 'Pending'}",
     )
+    globals()["page_header"] = original_page_header
     dashboard_notifications()
     progress = api("GET", "/progress/me") or {}
     plans = api("GET", "/exercise-plans/my-plans") or []
@@ -580,12 +614,76 @@ def patient_dashboard():
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         stat_card("Total sessions", progress.get("total_sessions", 0), "Logged rehabilitation sessions", "blue")
+        dashboard_action("View progress", "Progress")
     with c2:
         stat_card("Average pain change", progress.get("average_pain_change", 0), "Before versus after exercise", "green")
+        dashboard_action("Log a session", "Session Log")
     with c3:
         stat_card("Active plans", len(plans), "Therapist-assigned plans", "teal")
+        dashboard_action("Open my plan", "My Plan")
     with c4:
         stat_card("Clinical documents", len(documents), "Shared with your therapist", "amber")
+        dashboard_action("View records", "Clinical Records")
+    view_options = ["My Plan", "Session Log", "Progress", "Messages", "Appointments", "Clinical Records", "AI Pose Feedback", "Settings"]
+    if st.session_state.get("patient_view") not in view_options:
+        st.session_state.patient_view = "My Plan"
+    selected_view = st.radio("Patient workspace section", view_options, horizontal=True, key="patient_view", label_visibility="collapsed")
+    st.markdown(f"<div class='ptr-section-title'>{ui_text(selected_view)}</div>", unsafe_allow_html=True)
+    if selected_view == "My Plan":
+        library = {item["id"]: item for item in (api("GET", "/exercises/") or [])}
+        if not plans:
+            info_card("No exercise plan assigned yet", "Your therapist will assign exercises, dosage, safety notes, and progression here.")
+        for plan in plans:
+            with st.expander(plan.get("title", "Exercise Plan"), expanded=True):
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Frequency Per Week", plan.get("frequency_per_week"))
+                c2.metric("Duration Weeks", plan.get("duration_weeks"))
+                c3.metric("Assigned Exercises", len(str(plan.get("exercise_prescriptions") or "").split(",")) if plan.get("exercise_prescriptions") else 0)
+                st.write(f"Clinical Notes: {plan.get('clinical_notes') or ''}")
+                st.write(f"Progression: {plan.get('progression_notes') or ''}")
+                prescriptions = str(plan.get("exercise_prescriptions") or "")
+                selected_names = [exercise["name"] for exercise_id, exercise in library.items() if str(exercise_id) in prescriptions]
+                if selected_names:
+                    st.markdown("#### Assigned Exercises")
+                    for name in selected_names:
+                        status_pill(name, "teal")
+    elif selected_view == "Session Log":
+        exercises = api("GET", "/exercises/") or []
+        exercise_id = st.selectbox("Exercise", [x["id"] for x in exercises], format_func=lambda i: next((x["name"] for x in exercises if x["id"] == i), i)) if exercises else 1
+        with st.form("session"):
+            pain_before = st.slider("Pain Before", 0, 10, 0)
+            pain_after = st.slider("Pain After", 0, 10, 0)
+            adherence = st.slider("Adherence", 0, 100, 80) / 100
+            notes = st.text_area("Notes")
+            if st.form_submit_button("Save Session"):
+                result = api("POST", "/session-logs/", json={"patient_id": profile["id"], "exercise_id": exercise_id, "pain_before": pain_before, "pain_after": pain_after, "adherence": adherence, "patient_feedback": notes})
+                if result:
+                    st.success("Session log saved.")
+                    st.rerun()
+    elif selected_view == "Progress":
+        c1, c2 = st.columns(2)
+        c1.metric("Total Sessions", progress.get("total_sessions", 0))
+        c2.metric("Average Pain Change", progress.get("average_pain_change", 0))
+        if progress.get("logs"):
+            frame = pd.DataFrame(progress["logs"])
+            chart_columns = [column for column in ["pain_before", "pain_after", "adherence"] if column in frame.columns]
+            if chart_columns:
+                st.line_chart(frame[chart_columns])
+            st.dataframe(frame, use_container_width=True)
+        else:
+            info_card("No tracked progress yet", "Save a session log to begin seeing real pain and adherence trends.")
+    elif selected_view == "Messages":
+        message_box(profile["id"])
+    elif selected_view == "Appointments":
+        appointments_page(profile)
+    elif selected_view == "Clinical Records":
+        clinical_records(profile)
+    elif selected_view == "AI Pose Feedback":
+        st.info("Camera access is requested only on this screen because live pose feedback needs a camera image.")
+        pose_feedback()
+    elif selected_view == "Settings":
+        contact_settings(profile)
+    return
     tabs = st.tabs(["My Plan", "Session Log", "Progress", "Messages", "Appointments", "Clinical Records", "AI Pose Feedback", "Settings"])
     with tabs[0]:
         library = {item["id"]: item for item in (api("GET", "/exercises/") or [])}
@@ -892,6 +990,15 @@ def audit_logs():
 def pose_feedback():
     st.subheader("AI Pose Feedback")
     st.caption("Use a clear full-body camera view. The system gives exercise-form coaching from the live frame.")
+    if not st.session_state.get("pose_camera_enabled"):
+        info_card("Camera is off", "Camera access will only be requested when you start live pose feedback.")
+        if st.button("Start camera feedback"):
+            st.session_state.pose_camera_enabled = True
+            st.rerun()
+        return
+    if st.button("Stop camera feedback"):
+        st.session_state.pose_camera_enabled = False
+        st.rerun()
     exercise = st.text_input("Exercise Being Performed", "Squat")
     camera_frame = st.camera_input("Live Exercise Camera")
     if camera_frame is not None and st.button("Analyze Live Frame"):
@@ -1158,6 +1265,36 @@ def apply_theme():
             border-radius: 12px;
             margin: .25rem 0 1.25rem;
             box-shadow: 0 18px 42px rgba(16, 24, 40, .18);
+            position: relative;
+            overflow: hidden;
+            transform-style: preserve-3d;
+            isolation: isolate;
+        }
+        .ptr-hero:before {
+            content:"";
+            position:absolute;
+            inset:-1px;
+            background: linear-gradient(110deg, transparent 0%, rgba(255,255,255,.14) 42%, transparent 68%);
+            transform: translateX(-80%);
+            animation: ptrSheen 7s ease-in-out infinite;
+            z-index:-1;
+        }
+        .ptr-hero:after {
+            content:"";
+            position:absolute;
+            right:2rem;
+            top:1.6rem;
+            width:14rem;
+            height:14rem;
+            border:1px solid rgba(255,255,255,.16);
+            border-radius:28px;
+            transform: rotateX(62deg) rotateZ(42deg);
+            box-shadow: 0 28px 80px rgba(0,0,0,.16);
+            z-index:-1;
+        }
+        @keyframes ptrSheen {
+            0%, 58% { transform: translateX(-90%); }
+            78%, 100% { transform: translateX(90%); }
         }
         .ptr-hero h1 {
             color: #fff!important;
@@ -1212,6 +1349,23 @@ def apply_theme():
             border: 1px solid var(--ptr-line);
             box-shadow: 0 10px 26px rgba(16, 24, 40, .055);
             margin-bottom: 1rem;
+            transform: perspective(900px) translateZ(0);
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .ptr-stat:hover {
+            transform: perspective(900px) translateY(-4px) rotateX(1.4deg) rotateY(-1.4deg);
+            box-shadow: 0 22px 48px rgba(16, 24, 40, .13);
+            border-color: rgba(23, 92, 211, .28);
+        }
+        .ptr-stat:after {
+            content:"";
+            position:absolute;
+            inset:auto -20% -60% 40%;
+            height:110px;
+            background: radial-gradient(circle, rgba(23,92,211,.12), transparent 68%);
+            pointer-events:none;
         }
         .ptr-stat span, .ptr-card p, .ptr-stat small { color: var(--ptr-muted)!important; }
         .ptr-stat strong {
@@ -1241,6 +1395,11 @@ def apply_theme():
             padding: 1rem 1.1rem;
             margin: .65rem 0;
             box-shadow: 0 10px 26px rgba(16, 24, 40, .05);
+            transition: transform .18s ease, box-shadow .18s ease;
+        }
+        .ptr-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 42px rgba(16, 24, 40, .09);
         }
         .ptr-card h3 { font-size: 1rem; margin:0 0 .35rem; color:var(--ptr-text)!important; }
         .ptr-card-teal { border-left: 5px solid var(--ptr-teal); }
@@ -1279,6 +1438,28 @@ def apply_theme():
             font-size:.78rem;
             font-weight:800;
             margin-bottom:.35rem;
+        }
+        .ptr-section-title {
+            margin: 1.35rem 0 .8rem;
+            padding: .85rem 1rem;
+            border: 1px solid var(--ptr-line);
+            border-radius: 10px;
+            background: linear-gradient(180deg, #ffffff, #f8fbff);
+            color: var(--ptr-text)!important;
+            font-size: 1.05rem;
+            font-weight: 850;
+            box-shadow: 0 12px 30px rgba(16, 24, 40, .055);
+        }
+        div[role="radiogroup"] {
+            background: rgba(255,255,255,.78);
+            border: 1px solid var(--ptr-line);
+            border-radius: 12px;
+            padding: .45rem;
+            box-shadow: 0 12px 30px rgba(16, 24, 40, .045);
+        }
+        div[role="radiogroup"] label {
+            border-radius: 8px;
+            padding: .35rem .55rem;
         }
         div[data-testid="stForm"], div[data-testid="stExpander"], div[data-testid="stVerticalBlockBorderWrapper"] {
             border-radius: 10px!important;
