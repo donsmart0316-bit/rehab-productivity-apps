@@ -336,6 +336,48 @@ def page_header(title, subtitle="", eyebrow="Physio Tele-Rehab"):
     )
 
 
+def auth_showcase():
+    st.markdown(
+        f"""
+        <section class="ptr-auth-stage">
+            <div class="ptr-auth-copy">
+                <span>{ui_text("Physio Tele-Rehab")}</span>
+                <h1>{ui_text("Rehabilitation care, beautifully coordinated.")}</h1>
+                <p>{ui_text("A secure workspace for therapist-led exercise plans, outcome tracking, clinical records, messages, appointments, and textbook-supported decisions.")}</p>
+                <div class="ptr-auth-badges">
+                    <b>{ui_text("Therapist-reviewed plans")}</b>
+                    <b>{ui_text("Patient progress tracking")}</b>
+                    <b>{ui_text("Textbook-grounded AI support")}</b>
+                </div>
+            </div>
+            <div class="ptr-auth-visual" aria-hidden="true">
+                <div class="ptr-browser-bar"><i></i><i></i><i></i></div>
+                <div class="ptr-visual-grid">
+                    <div class="ptr-visual-card ptr-photo-card"></div>
+                    <div class="ptr-visual-card ptr-chart-card">
+                        <small>{ui_text("Recovery trend")}</small>
+                        <strong>82%</strong>
+                        <div class="ptr-bars"><em></em><em></em><em></em><em></em><em></em></div>
+                    </div>
+                    <div class="ptr-visual-card ptr-plan-card">
+                        <small>{ui_text("Today")}</small>
+                        <strong>{ui_text("Plan review")}</strong>
+                        <p>{ui_text("3 exercises ready for therapist approval")}</p>
+                    </div>
+                    <div class="ptr-visual-card ptr-orbit-card">
+                        <strong>{ui_text("Care loop")}</strong>
+                        <span>{ui_text("Assess")}</span>
+                        <span>{ui_text("Assign")}</span>
+                        <span>{ui_text("Track")}</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def stat_card(label, value, helper="", tone="teal"):
     st.markdown(
         f"""
@@ -427,15 +469,12 @@ def therapist_focus_panel(patient, alerts=None, rag=None, notifications=None):
 
 
 def login_page():
-    page_header(
-        "Remote rehabilitation that feels close",
-        "Secure patient care, therapist workflows, outcome tracking, records, and textbook-grounded AI support.",
-        "Physio Tele-Rehab",
-    )
+    auth_showcase()
     auth_mode = st.session_state.get("auth_mode", "login")
-    center, side = st.columns([0.92, 0.08])
+    center, side = st.columns([0.64, 0.36])
     with center:
         if auth_mode == "login":
+            st.markdown("<div class='ptr-form-kicker'>Secure access</div>", unsafe_allow_html=True)
             st.subheader("Login")
             with st.form("login"):
                 identifier = st.text_input("Email / Phone / Patient ID")
@@ -478,6 +517,7 @@ def login_page():
                     if result:
                         st.success("Password Changed. You Can Login Now.")
         else:
+            st.markdown("<div class='ptr-form-kicker'>Patient onboarding</div>", unsafe_allow_html=True)
             st.subheader("Create Account")
             st.caption("Create a patient account. Your email will be verified before onboarding.")
             with st.form("register"):
@@ -1285,6 +1325,7 @@ def sidebar():
 def apply_theme():
     base_css = """
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650;9..144,750&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         :root {
             --ptr-navy:#07111f;
             --ptr-ink:#101828;
@@ -1310,6 +1351,9 @@ def apply_theme():
             --ptr-red-soft:#fef3f2;
             --ptr-lavender:#6938ef;
             --ptr-lavender-soft:#f4f3ff;
+        }
+        html, body, .stApp, button, input, textarea, select {
+            font-family: "Plus Jakarta Sans", "Inter", "Segoe UI", Arial, sans-serif!important;
         }
         .block-container { padding-top: 1.4rem; max-width: 1440px; }
         html, body, .stApp, [data-testid="stAppViewContainer"] {
@@ -1348,7 +1392,11 @@ def apply_theme():
         .ptr-hero {
             background:
                 radial-gradient(circle at 86% 18%, rgba(22, 163, 143, .25), transparent 28%),
-                linear-gradient(135deg, #07111f 0%, #123b63 52%, #175cd3 100%);
+                linear-gradient(135deg, rgba(7,17,31,.96) 0%, rgba(18,59,99,.94) 52%, rgba(23,92,211,.92) 100%),
+                url("https://images.unsplash.com/photo-1579154204601-01588f351e67?auto=format&fit=crop&w=1600&q=80");
+            background-size: cover;
+            background-position: center;
+            background-blend-mode: normal, normal, multiply;
             color: #fff;
             padding: 2rem 2.2rem;
             border-radius: 12px;
@@ -1386,6 +1434,7 @@ def apply_theme():
             78%, 100% { transform: translateX(90%); }
         }
         .ptr-hero h1 {
+            font-family: "Fraunces", "Plus Jakarta Sans", serif!important;
             color: #fff!important;
             font-size: clamp(2rem, 4vw, 3.3rem);
             line-height: 1.05;
@@ -1404,6 +1453,201 @@ def apply_theme():
             font-size:.78rem;
             letter-spacing:.08em;
             font-weight:800;
+        }
+        .ptr-auth-stage {
+            display:grid;
+            grid-template-columns: minmax(0, .95fr) minmax(420px, 1.25fr);
+            gap: 1.4rem;
+            align-items: stretch;
+            min-height: 430px;
+            margin: .25rem 0 1.45rem;
+        }
+        .ptr-auth-copy {
+            position:relative;
+            overflow:hidden;
+            min-height: 430px;
+            padding: 2.35rem;
+            border-radius: 18px;
+            background:
+                linear-gradient(140deg, rgba(7,17,31,.96) 0%, rgba(15,59,99,.94) 56%, rgba(23,92,211,.9) 100%),
+                url("https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=1400&q=80");
+            background-size: cover;
+            background-position: center;
+            background-blend-mode: multiply;
+            box-shadow: 0 28px 72px rgba(16, 24, 40, .18);
+            transform-style: preserve-3d;
+        }
+        .ptr-auth-copy span {
+            color:#a7f3e7!important;
+            display:inline-flex;
+            font-size:.78rem;
+            letter-spacing:.08em;
+            text-transform:uppercase;
+            font-weight:850;
+            margin-bottom: 1.3rem;
+        }
+        .ptr-auth-copy h1 {
+            font-family: "Fraunces", "Plus Jakarta Sans", serif!important;
+            color:#ffffff!important;
+            max-width: 760px;
+            font-size: clamp(2.8rem, 6vw, 5.6rem);
+            line-height: .92;
+            letter-spacing: 0!important;
+            margin: 0 0 1.1rem;
+        }
+        .ptr-auth-copy p {
+            color:#d9e6f7!important;
+            max-width: 650px;
+            font-size: 1.05rem;
+            line-height: 1.65;
+            margin: 0;
+        }
+        .ptr-auth-badges {
+            display:flex;
+            flex-wrap:wrap;
+            gap:.6rem;
+            margin-top:1.45rem;
+        }
+        .ptr-auth-badges b {
+            color:#ffffff!important;
+            border:1px solid rgba(255,255,255,.22);
+            background: rgba(255,255,255,.11);
+            backdrop-filter: blur(12px);
+            border-radius:999px;
+            padding:.55rem .78rem;
+            font-size:.78rem;
+        }
+        .ptr-auth-visual {
+            position:relative;
+            overflow:hidden;
+            min-height:430px;
+            border:1px solid var(--ptr-line);
+            border-radius: 18px;
+            background:
+                radial-gradient(circle at 86% 10%, rgba(167,243,231,.55), transparent 25%),
+                linear-gradient(140deg, #f7fbff 0%, #dff5f1 50%, #eef4ff 100%);
+            box-shadow: 0 28px 72px rgba(16, 24, 40, .13);
+            padding: 1.2rem;
+        }
+        .ptr-browser-bar {
+            height:34px;
+            display:flex;
+            gap:.45rem;
+            align-items:center;
+            padding:0 .6rem;
+            border:1px solid rgba(16,24,40,.08);
+            border-radius: 12px;
+            background: rgba(255,255,255,.76);
+            margin-bottom: .8rem;
+        }
+        .ptr-browser-bar i {
+            width:9px;
+            height:9px;
+            display:block;
+            border-radius:50%;
+            background:#d0d5dd;
+        }
+        .ptr-visual-grid {
+            display:grid;
+            grid-template-columns: 1.05fr .95fr;
+            grid-template-rows: 170px 150px;
+            gap:.85rem;
+        }
+        .ptr-visual-card {
+            border:1px solid rgba(16,24,40,.08);
+            border-radius: 16px;
+            background: rgba(255,255,255,.82);
+            box-shadow: 0 18px 42px rgba(16,24,40,.12);
+            overflow:hidden;
+            transform: perspective(1100px) translateZ(0);
+            transition: transform .18s ease, box-shadow .18s ease;
+        }
+        .ptr-visual-card:hover {
+            transform: perspective(1100px) translateY(-5px) rotateX(1deg) rotateY(-1deg);
+            box-shadow: 0 26px 60px rgba(16,24,40,.16);
+        }
+        .ptr-photo-card {
+            grid-row: span 2;
+            background:
+                linear-gradient(180deg, transparent 55%, rgba(7,17,31,.58)),
+                url("https://images.unsplash.com/photo-1599058917212-d750089bc07e?auto=format&fit=crop&w=900&q=80");
+            background-size: cover;
+            background-position: center;
+        }
+        .ptr-chart-card,
+        .ptr-plan-card,
+        .ptr-orbit-card {
+            padding: 1rem;
+        }
+        .ptr-chart-card small,
+        .ptr-plan-card small {
+            display:block;
+            color:var(--ptr-muted)!important;
+            font-weight:800;
+            margin-bottom:.4rem;
+        }
+        .ptr-chart-card strong {
+            color:var(--ptr-text)!important;
+            font-size:2.6rem;
+            line-height:1;
+        }
+        .ptr-bars {
+            display:flex;
+            align-items:end;
+            gap:.35rem;
+            height:70px;
+            margin-top:.75rem;
+        }
+        .ptr-bars em {
+            flex:1;
+            border-radius:999px 999px 4px 4px;
+            background: linear-gradient(180deg, #15b79e, #175cd3);
+        }
+        .ptr-bars em:nth-child(1) { height:32%; }
+        .ptr-bars em:nth-child(2) { height:56%; }
+        .ptr-bars em:nth-child(3) { height:46%; }
+        .ptr-bars em:nth-child(4) { height:74%; }
+        .ptr-bars em:nth-child(5) { height:92%; }
+        .ptr-plan-card {
+            background: #07111f;
+        }
+        .ptr-plan-card small { color:#a7f3e7!important; }
+        .ptr-plan-card strong {
+            color:#fff!important;
+            display:block;
+            font-size:1.45rem;
+            margin-bottom:.55rem;
+        }
+        .ptr-plan-card p {
+            color:#d9e6f7!important;
+            margin:0;
+            line-height:1.45;
+        }
+        .ptr-orbit-card {
+            display:flex;
+            flex-wrap:wrap;
+            align-content:center;
+            gap:.45rem;
+        }
+        .ptr-orbit-card strong {
+            width:100%;
+            color:var(--ptr-text)!important;
+            margin-bottom:.3rem;
+        }
+        .ptr-orbit-card span {
+            border-radius:999px;
+            background:var(--ptr-teal-soft);
+            color:var(--ptr-teal-dark)!important;
+            font-weight:800;
+            padding:.42rem .65rem;
+        }
+        .ptr-form-kicker {
+            color: var(--ptr-primary)!important;
+            text-transform: uppercase;
+            font-weight: 850;
+            letter-spacing: .08em;
+            font-size: .75rem;
+            margin-top:.4rem;
         }
         .ptr-auth-switch {
             margin: 1rem 0 .25rem;
@@ -1735,6 +1979,29 @@ def apply_theme():
             .ptr-card {
                 padding: .9rem;
             }
+            .ptr-auth-stage,
+            .ptr-visual-grid {
+                grid-template-columns: 1fr;
+            }
+            .ptr-auth-stage {
+                min-height: auto;
+            }
+            .ptr-auth-copy,
+            .ptr-auth-visual {
+                min-height: 330px;
+                border-radius: 14px;
+                padding: 1rem;
+            }
+            .ptr-auth-copy h1 {
+                font-size: 2.7rem;
+            }
+            .ptr-visual-grid {
+                grid-template-rows: auto;
+            }
+            .ptr-photo-card {
+                min-height: 220px;
+                grid-row: auto;
+            }
             .ptr-clinical-focus,
             .ptr-focus-grid {
                 grid-template-columns: 1fr;
@@ -1799,6 +2066,20 @@ def apply_theme():
             }
             .ptr-focus-grid div {
                 background:#111827!important;
+                border-color:#334155!important;
+            }
+            .ptr-auth-visual {
+                background: linear-gradient(140deg, #111827 0%, #0f2f4f 55%, #122646 100%)!important;
+                border-color:#334155!important;
+            }
+            .ptr-browser-bar,
+            .ptr-chart-card,
+            .ptr-orbit-card {
+                background:#111827!important;
+                border-color:#334155!important;
+            }
+            .ptr-plan-card {
+                background:#07111f!important;
                 border-color:#334155!important;
             }
             </style>
