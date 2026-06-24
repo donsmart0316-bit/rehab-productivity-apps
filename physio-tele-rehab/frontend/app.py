@@ -303,7 +303,7 @@ def render_document_file(document):
 
 
 def init_state():
-    defaults = {"token": None, "role": None, "clinical_role": None, "route": "login", "language": "English", "theme": "Bright", "translation_cache": {}, "auth_mode": "login", "patient_view": "My Plan"}
+    defaults = {"token": None, "role": None, "clinical_role": None, "full_name": None, "route": "login", "language": "English", "theme": "Bright", "translation_cache": {}, "auth_mode": "login", "patient_view": "My Plan"}
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
 
@@ -446,6 +446,7 @@ def login_page():
                         st.session_state.token = result["access_token"]
                         st.session_state.role = result["role"]
                         st.session_state.clinical_role = result.get("clinical_role")
+                        st.session_state.full_name = result.get("full_name")
                         st.session_state.user_id = result.get("user_id")
                         st.session_state.email_verified = result.get("email_verified", True)
                         if result["role"] == "patient" and not st.session_state.email_verified:
@@ -510,6 +511,7 @@ def login_page():
                         st.session_state.token = result["access_token"]
                         st.session_state.role = result["role"]
                         st.session_state.clinical_role = result.get("clinical_role")
+                        st.session_state.full_name = result.get("full_name")
                         st.session_state.user_id = result.get("user_id")
                         st.session_state.email_verified = result.get("email_verified", False)
                         go("verify_email")
@@ -763,27 +765,28 @@ def patient_dashboard():
 
 
 def therapist_dashboard():
-    therapist_label = st.session_state.get("clinical_role") or "Therapist"
+    therapist_label = st.session_state.get("full_name") or st.session_state.get("clinical_role") or "Therapist"
     page_header(
         f"{time_greeting()}, {display_name(therapist_label)}",
         "Clinical review queue, patient monitoring, records, messaging, and evidence-supported decisions.",
-        "Therapist workspace",
+        "Care Team",
     )
     dashboard_notifications()
     patients = api("GET", "/therapist/patients") or []
     unassigned = api("GET", "/therapist-assignments/unassigned-patients") or []
     alerts = api("GET", "/clinical-alerts/") or []
     notifications = api("GET", "/appointments/notifications/me") or []
+    appointments = api("GET", "/appointments/therapist/me") or []
     rag = api("GET", "/clinical-records/textbook-rag/status") or {}
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        stat_card("Assigned Patients", len(patients), "Currently under your care", "teal")
+        stat_card("Assigned Patients", len(patients), "Patients currently assigned to you", "teal")
     with c2:
-        stat_card("Unassigned Queue", len(unassigned), "Patients waiting for therapist", "amber")
+        stat_card("Unassigned Queue", len(unassigned), "Patients waiting for assignment", "amber")
     with c3:
-        stat_card("Clinical Alerts", len(alerts), "Flagged records to review", "red")
+        stat_card("Open Alerts", len(alerts), "Clinical alerts in your review list", "red")
     with c4:
-        stat_card("AI + RAG", "Ready" if rag.get("available", True) else "Check", "Textbook evidence workflow", "blue")
+        stat_card("Appointments", len(appointments), "Appointments on your therapist calendar", "blue")
 
     selected = select_patient(patients)
     if selected:
@@ -850,16 +853,53 @@ def assessment_form(patient):
 
 def plan_builder(patient):
     exercises = api("GET", "/exercises/") or []
-    selected = st.multiselect("Exercises", [x["id"] for x in exercises], format_func=lambda i: next((x["name"] for x in exercises if x["id"] == i), i))
+    condition_map = api("GET", "/recommendations/condition-map") or {}
+    condition_options = list(condition_map.keys()) or ["General Rehabilitation"]
+    patient_condition = patient.get("condition") or condition_options[0]
+    condition_index = condition_options.index(patient_condition) if patient_condition in condition_options else 0
+    st.markdown("#### AI exercise recommendation support")
+    condition = st.selectbox("Condition For Recommendation", condition_options, index=condition_index)
+    assessment_summary = st.text_area("Assessment Summary For AI", value=patient.get("condition_notes") or patient.get("notes") or "", height=90)
+    precautions_for_ai = st.text_area("Precautions / Contraindications For AI", value=patient.get("precautions") or "", height=75)
+    rec_key = f"ai_exercise_recommendation_{patient['id']}"
+    if st.button("Generate Therapist Recommendation", key=f"generate_plan_ai_{patient['id']}"):
+        recommendation = api(
+            "POST",
+            "/recommendations/plan",
+            json={
+                "condition": condition,
+                "assessment_summary": assessment_summary,
+                "goals": patient.get("goals") or "",
+                "precautions": precautions_for_ai,
+            },
+        )
+        if recommendation:
+            st.session_state[rec_key] = recommendation
+            st.success("Recommendation generated for therapist review.")
+
+    recommendation = st.session_state.get(rec_key)
+    suggested_names = recommendation.get("recommendations", []) if recommendation else []
+    exercise_lookup = {str(item.get("name", "")).strip().lower(): item.get("id") for item in exercises}
+    suggested_ids = [exercise_lookup[name.strip().lower()] for name in suggested_names if name.strip().lower() in exercise_lookup]
+    if recommendation:
+        with st.expander("Review AI recommendation before assigning", expanded=True):
+            st.write("Suggested exercises:")
+            st.write(", ".join(suggested_names) if suggested_names else "No named exercise suggestions returned.")
+            if recommendation.get("ai_exercise_guidance"):
+                st.write(recommendation.get("ai_exercise_guidance"))
+            st.caption(recommendation.get("evidence_justification", "Therapist review required."))
+
+    selected = st.multiselect("Exercises To Assign", [x["id"] for x in exercises], default=suggested_ids, format_func=lambda i: next((x["name"] for x in exercises if x["id"] == i), i))
     with st.form("plan"):
-        title = st.text_input("Plan Title")
+        title = st.text_input("Plan Title", value=f"{condition} Rehabilitation Plan" if recommendation else "")
         goals = st.text_area("Goals")
-        notes = st.text_area("Clinical Notes")
+        guidance_note = recommendation.get("ai_exercise_guidance", "") if recommendation else ""
+        notes = st.text_area("Clinical Notes", value=guidance_note)
         progression = st.text_area("Progression Instructions")
         frequency = st.number_input("Frequency Per Week", 1, 14, 3)
         duration = st.number_input("Duration Weeks", 1, 52, 6)
         if st.form_submit_button("Create Plan"):
-            api("POST", "/exercise-plans/create", json={"patient_id": patient["id"], "title": title, "clinical_notes": notes, "goals": [goals], "progression_notes": progression, "frequency_per_week": frequency, "duration_weeks": duration, "exercise_prescriptions": selected})
+            api("POST", "/exercise-plans/create", json={"patient_id": patient["id"], "title": title, "diagnosis_summary": condition, "clinical_notes": notes, "goals": [goals], "progression_notes": progression, "frequency_per_week": frequency, "duration_weeks": duration, "precautions": precautions_for_ai, "exercise_prescriptions": selected})
 
 
 def appointments_page(patient):
@@ -1237,6 +1277,7 @@ def sidebar():
             if st.button(t("Logout")):
                 st.session_state.token = None
                 st.session_state.role = None
+                st.session_state.full_name = None
                 st.session_state.user_id = None
                 go("login")
 

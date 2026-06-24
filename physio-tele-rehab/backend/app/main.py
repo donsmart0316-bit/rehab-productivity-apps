@@ -495,6 +495,7 @@ def register(data: RegisterIn):
         "token_type": "bearer",
         "role": role,
         "clinical_role": user.get("clinical_role"),
+        "full_name": user.get("full_name"),
         "user_id": user["id"],
         "email_verified": bool(user.get("email_verified")),
         "invitation_email_status": invite_status,
@@ -515,7 +516,7 @@ def login(data: LoginIn):
     if not user or not verify_password(data.password, user["hashed_password"]):
         raise HTTPException(status_code=401, detail="Invalid Login")
     audit(user, "login", "auth", user["id"], desc="User Login")
-    return {"access_token": token_for(user), "token_type": "bearer", "role": user["role"], "clinical_role": user.get("clinical_role"), "user_id": user["id"], "email_verified": bool(user.get("email_verified"))}
+    return {"access_token": token_for(user), "token_type": "bearer", "role": user["role"], "clinical_role": user.get("clinical_role"), "full_name": user.get("full_name"), "user_id": user["id"], "email_verified": bool(user.get("email_verified"))}
 
 
 @app.post("/api/auth/request-password-reset")
@@ -722,12 +723,25 @@ def recommendation_condition_map():
 
 @app.post("/api/recommendations/plan")
 def recommendation_plan(data: dict, user: dict = Depends(current_user)):
+    if user["role"] != "therapist":
+        raise HTTPException(status_code=403, detail="Only Therapists Can Generate AI Exercise Recommendations")
     condition = data.get("condition", "General Rehabilitation")
     exercises = recommendation_condition_map().get(condition, ["Pain-Free Mobility", "Strengthening", "Functional Practice"])
+    source = "\n".join(
+        [
+            f"Condition: {condition}",
+            f"Patient presentation: {data.get('assessment_summary') or data.get('presentation') or ''}",
+            f"Goals: {data.get('goals') or ''}",
+            f"Precautions: {data.get('precautions') or ''}",
+            f"Pain/adherence context: {data.get('progress_context') or ''}",
+        ]
+    )
+    guidance = ai_clinical_suggestion(source, "therapist exercise recommendation support")
     return {
         "condition": condition,
         "recommendations": exercises,
-        "evidence_justification": "Generated as clinical decision support. Match exercises to assessment findings, precautions, and patient tolerance.",
+        "ai_exercise_guidance": guidance,
+        "evidence_justification": "Generated as therapist-only clinical decision support. Match exercises to assessment findings, precautions, and patient tolerance before assigning to the patient.",
         "clinical_guideline_references": ["Therapeutic Exercise Principles", "Condition-Specific Rehabilitation Guidelines"],
         "therapist_review_required": True,
     }
