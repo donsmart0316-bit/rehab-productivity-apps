@@ -21,6 +21,7 @@ from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -36,6 +37,10 @@ except Exception:
 DB_PATH = Path(os.getenv("PHYSIO_DB_PATH", BASE_DIR / "physio.db"))
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", BASE_DIR / "uploads"))
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH.as_posix()}")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 SECRET_KEY = os.getenv("SECRET_KEY", "change-this-secret-key-before-production")
 ALGORITHM = "HS256"
 TRANSLATION_API_URL = os.getenv("TRANSLATION_API_URL", "").strip()
@@ -67,7 +72,13 @@ TWILIO_AUTH_TOKEN = env_secret("TWILIO_AUTH_TOKEN")
 TWILIO_FROM_PHONE = env_secret("TWILIO_FROM_PHONE")
 DEV_SHOW_RESET_CODE = os.getenv("DEV_SHOW_RESET_CODE", "false").lower() == "true"
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False}, future=True)
+database_url_info = make_url(DATABASE_URL)
+IS_SQLITE = database_url_info.get_backend_name() == "sqlite"
+IS_POSTGRES = database_url_info.get_backend_name().startswith("postgresql")
+engine_kwargs: dict[str, Any] = {"future": True, "pool_pre_ping": True}
+if IS_SQLITE:
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login-oauth2")
 
@@ -108,15 +119,62 @@ def human_datetime(value: Any) -> str:
     return parsed.strftime("%A, %d %B %Y At %I:%M %p")
 
 
+class DBResult:
+    def __init__(self, result, inserted_id: int | None = None):
+        self._result = result
+        self.lastrowid = inserted_id if inserted_id is not None else getattr(result, "lastrowid", None)
+
+    def __getattr__(self, name: str):
+        return getattr(self._result, name)
+
+
+BOOLEAN_COLUMNS = [
+    "accepted",
+    "approved",
+    "email_verified",
+    "exercise_completed",
+    "is_active",
+    "is_completed",
+    "is_onboarded",
+    "is_progression",
+    "is_resolved",
+    "observed_by_therapist",
+    "reviewed_by_therapist",
+    "used",
+]
+
+
+def normalize_sql(sql: str) -> str:
+    if not IS_POSTGRES:
+        return sql
+    normalized = sql
+    normalized = re.sub(r"\bid INTEGER PRIMARY KEY\b", "id SERIAL PRIMARY KEY", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"\bDATETIME\b", "TIMESTAMP", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"\bBOOLEAN DEFAULT 1\b", "BOOLEAN DEFAULT TRUE", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"\bBOOLEAN DEFAULT 0\b", "BOOLEAN DEFAULT FALSE", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"COALESCE\((is_active|email_verified|accepted|used),1\)=1", r"COALESCE(\1, TRUE)=TRUE", normalized, flags=re.IGNORECASE)
+    for column in BOOLEAN_COLUMNS:
+        normalized = re.sub(rf"\b{column}\s*=\s*1\b", f"{column}=TRUE", normalized, flags=re.IGNORECASE)
+        normalized = re.sub(rf"\b{column}\s*=\s*0\b", f"{column}=FALSE", normalized, flags=re.IGNORECASE)
+    if normalized.lstrip().upper().startswith("INSERT ") and " RETURNING " not in normalized.upper():
+        normalized = normalized.rstrip().rstrip(";") + " RETURNING id"
+    return normalized
+
+
 def run(sql: str, params: dict[str, Any] | None = None):
     with engine.begin() as conn:
-        result = conn.execute(text(sql), params or {})
-        return result
+        result = conn.execute(text(normalize_sql(sql)), params or {})
+        inserted_id = None
+        if result.returns_rows:
+            row = result.fetchone()
+            if row is not None and "id" in row._mapping:
+                inserted_id = row._mapping["id"]
+        return DBResult(result, inserted_id)
 
 
 def rows(sql: str, params: dict[str, Any] | None = None):
     with engine.begin() as conn:
-        return [dict(row._mapping) for row in conn.execute(text(sql), params or {}).fetchall()]
+        return [dict(row._mapping) for row in conn.execute(text(normalize_sql(sql)), params or {}).fetchall()]
 
 
 def one(sql: str, params: dict[str, Any] | None = None):
@@ -459,7 +517,7 @@ def create_email_verification_code(user: dict) -> tuple[str, str | None]:
         return "No Recipient", "No email address on file."
     code = f"{int(now().timestamp()) % 1000000:06d}"
     run(
-        "INSERT INTO email_verification_tokens(user_id,email,code_hash,expires_at,used,created_at) VALUES(:user_id,:email,:code,:expires,0,:created)",
+        "INSERT INTO email_verification_tokens(user_id,email,code_hash,expires_at,used,created_at) VALUES(:user_id,:email,:code,:expires,FALSE,:created)",
         {"user_id": user["id"], "email": user["email"], "code": pwd_context.hash(code), "expires": now() + timedelta(minutes=20), "created": now()},
     )
     subject = "Verify Your Physio Tele-Rehab Email"
@@ -481,7 +539,7 @@ def register(data: RegisterIn):
     result = run(
         """
         INSERT INTO users(email,phone_number,hashed_password,full_name,role,clinical_role,is_active,created_at)
-        VALUES(:email,:phone,:password,:name,:role,:clinical,1,:created)
+        VALUES(:email,:phone,:password,:name,:role,:clinical,TRUE,:created)
         """,
         {"email": data.email, "phone": data.phone_number, "password": hashed, "name": data.full_name, "role": role, "clinical": data.clinical_role, "created": str(now())},
     )
@@ -530,7 +588,7 @@ def request_password_reset(data: ResetRequestIn):
         return {"message": "If The Account Exists, A Reset Code Was Generated."}
     code = f"{int(now().timestamp()) % 1000000:06d}"
     run(
-        "INSERT INTO password_reset_tokens(identifier,code_hash,expires_at,used,created_at) VALUES(:identifier,:code,:expires,0,:created)",
+        "INSERT INTO password_reset_tokens(identifier,code_hash,expires_at,used,created_at) VALUES(:identifier,:code,:expires,FALSE,:created)",
         {"identifier": data.identifier, "code": pwd_context.hash(code), "expires": now() + timedelta(minutes=20), "created": now()},
     )
     if channel == "email":
@@ -616,7 +674,7 @@ def request_email_change(data: dict, user: dict = Depends(current_user)):
         raise HTTPException(status_code=400, detail="Email Already Exists")
     code = f"{int(now().timestamp()) % 1000000:06d}"
     run(
-        "INSERT INTO email_change_tokens(user_id,new_email,code_hash,expires_at,used,created_at) VALUES(:user_id,:new_email,:code,:expires,0,:created)",
+        "INSERT INTO email_change_tokens(user_id,new_email,code_hash,expires_at,used,created_at) VALUES(:user_id,:new_email,:code,:expires,FALSE,:created)",
         {"user_id": user["id"], "new_email": new_email, "code": pwd_context.hash(code), "expires": now() + timedelta(minutes=20), "created": now()},
     )
     status, detail = send_email_notification(
@@ -837,7 +895,7 @@ def assign(data: dict, user: dict = Depends(current_user)):
     run(
         """
         INSERT INTO therapist_assignments(patient_id,therapist_id,role,assigned_by_id,is_active,assigned_at,temporary_until,primary_therapist_id,coverage_start,coverage_reason)
-        VALUES(:p,:t,:r,:by,1,:at,:until,:primary,:start,:reason)
+        VALUES(:p,:t,:r,:by,TRUE,:at,:until,:primary,:start,:reason)
         """,
         {"p": patient_id, "t": therapist_id, "r": role, "by": user["id"], "at": now(), "until": data.get("temporary_until"), "primary": data.get("primary_therapist_id"), "start": data.get("coverage_start"), "reason": data.get("coverage_reason")},
     )
@@ -887,7 +945,7 @@ def create_exercise(data: dict, user: dict = Depends(current_user)):
     result = run(
         """
         INSERT INTO exercises(name,description,condition,target_muscles,body_region,difficulty,equipment_needed,reps,sets,duration_seconds,safety_precautions,video_url,image_url,is_active)
-        VALUES(:name,:description,:condition,:target_muscles,:body_region,:difficulty,:equipment_needed,:reps,:sets,:duration_seconds,:safety_precautions,:video_url,:image_url,1)
+        VALUES(:name,:description,:condition,:target_muscles,:body_region,:difficulty,:equipment_needed,:reps,:sets,:duration_seconds,:safety_precautions,:video_url,:image_url,TRUE)
         """,
         {
             **data,
@@ -936,7 +994,7 @@ def create_plan(data: dict, user: dict = Depends(current_user)):
     result = run(
         """
         INSERT INTO exercise_plans(patient_id,therapist_id,assessment_id,title,diagnosis_summary,clinical_notes,plan_notes,frequency_per_week,duration_weeks,sessions_per_day,start_date,end_date,progression_notes,progression_criteria,patient_specific_modifications,goals,is_active,precautions,contraindications,created_at,exercise_prescriptions,daily_schedule)
-        VALUES(:patient_id,:therapist_id,:assessment_id,:title,:diagnosis_summary,:clinical_notes,:plan_notes,:frequency_per_week,:duration_weeks,:sessions_per_day,:start_date,:end_date,:progression_notes,:progression_criteria,:patient_specific_modifications,:goals,1,:precautions,:contraindications,:created_at,:exercise_prescriptions,:daily_schedule)
+        VALUES(:patient_id,:therapist_id,:assessment_id,:title,:diagnosis_summary,:clinical_notes,:plan_notes,:frequency_per_week,:duration_weeks,:sessions_per_day,:start_date,:end_date,:progression_notes,:progression_criteria,:patient_specific_modifications,:goals,TRUE,:precautions,:contraindications,:created_at,:exercise_prescriptions,:daily_schedule)
         """,
         {
             **data,
@@ -1307,7 +1365,7 @@ def required_consents(user: dict = Depends(current_user)):
 def sign_consent(data: dict, user: dict = Depends(current_user)):
     patient = patient_access(int(data["patient_id"]), user)
     result = run(
-        "INSERT INTO consent_records(patient_id,consent_type,consent_text,signature,accepted,signed_at) VALUES(:p,:type,:text,:sig,1,:signed)",
+        "INSERT INTO consent_records(patient_id,consent_type,consent_text,signature,accepted,signed_at) VALUES(:p,:type,:text,:sig,TRUE,:signed)",
         {"p": patient["id"], "type": data["consent_type"], "text": data.get("consent_text", data["consent_type"]), "sig": data.get("signature", user.get("full_name")), "signed": now()},
     )
     return one("SELECT * FROM consent_records WHERE id=:id", {"id": result.lastrowid})
@@ -1371,13 +1429,13 @@ def scan_alerts(user: dict = Depends(current_user)):
         latest = one("SELECT * FROM session_logs WHERE patient_id=:id ORDER BY session_date DESC LIMIT 1", {"id": patient["id"]})
         if latest and latest.get("pain_after") is not None and latest["pain_after"] >= 7:
             run(
-                "INSERT INTO clinical_alerts(patient_id,therapist_id,alert_type,severity,message,source,is_resolved,created_at) VALUES(:p,:t,'high_pain','High',:m,'session_log',0,:created)",
+                "INSERT INTO clinical_alerts(patient_id,therapist_id,alert_type,severity,message,source,is_resolved,created_at) VALUES(:p,:t,'high_pain','High',:m,'session_log',FALSE,:created)",
                 {"p": patient["id"], "t": patient.get("therapist_id"), "m": f"High post-session pain score recorded: {latest['pain_after']}/10.", "created": now()},
             )
             created += 1
         if latest and latest.get("adherence") is not None and latest["adherence"] < 0.5:
             run(
-                "INSERT INTO clinical_alerts(patient_id,therapist_id,alert_type,severity,message,source,is_resolved,created_at) VALUES(:p,:t,'poor_adherence','Medium',:m,'session_log',0,:created)",
+                "INSERT INTO clinical_alerts(patient_id,therapist_id,alert_type,severity,message,source,is_resolved,created_at) VALUES(:p,:t,'poor_adherence','Medium',:m,'session_log',FALSE,:created)",
                 {"p": patient["id"], "t": patient.get("therapist_id"), "m": "Recent session adherence dropped below 50%.", "created": now()},
             )
             created += 1
@@ -1387,7 +1445,7 @@ def scan_alerts(user: dict = Depends(current_user)):
         )
         for appointment in missed:
             run(
-                "INSERT INTO clinical_alerts(patient_id,therapist_id,alert_type,severity,message,source,is_resolved,created_at) VALUES(:p,:t,'missed_appointment','Medium',:m,'appointment',0,:created)",
+                "INSERT INTO clinical_alerts(patient_id,therapist_id,alert_type,severity,message,source,is_resolved,created_at) VALUES(:p,:t,'missed_appointment','Medium',:m,'appointment',FALSE,:created)",
                 {"p": patient["id"], "t": patient.get("therapist_id"), "m": f"Appointment appears overdue: {appointment['scheduled_start']}.", "created": now()},
             )
             created += 1
@@ -1397,7 +1455,7 @@ def scan_alerts(user: dict = Depends(current_user)):
     )
     for assignment in expired:
         run(
-            "INSERT INTO clinical_alerts(patient_id,therapist_id,alert_type,severity,message,source,is_resolved,created_at) VALUES(:p,:t,'expired_temporary_assignment','High',:m,'coverage',0,:created)",
+            "INSERT INTO clinical_alerts(patient_id,therapist_id,alert_type,severity,message,source,is_resolved,created_at) VALUES(:p,:t,'expired_temporary_assignment','High',:m,'coverage',FALSE,:created)",
             {"p": assignment["patient_id"], "t": assignment.get("primary_therapist_id") or assignment["therapist_id"], "m": "Temporary therapist coverage has expired.", "created": now()},
         )
         created += 1
@@ -1650,7 +1708,7 @@ def ai_suggest(data: dict, user: dict = Depends(current_user)):
     source = data.get("source_text") or ""
     suggestion = ai_clinical_suggestion(source, data.get("request_type", "summary"))
     result = run(
-        "INSERT INTO ai_clinical_suggestions(patient_id,therapist_id,request_type,source_text,suggestion,reviewed_by_therapist,approved,created_at) VALUES(:p,:t,:type,:source,:suggestion,0,0,:created)",
+        "INSERT INTO ai_clinical_suggestions(patient_id,therapist_id,request_type,source_text,suggestion,reviewed_by_therapist,approved,created_at) VALUES(:p,:t,:type,:source,:suggestion,FALSE,FALSE,:created)",
         {"p": data["patient_id"], "t": user["id"], "type": data.get("request_type", "summary"), "source": source, "suggestion": suggestion, "created": now()},
     )
     return one("SELECT * FROM ai_clinical_suggestions WHERE id=:id", {"id": result.lastrowid})

@@ -23,6 +23,15 @@ Required production environment variables:
 
 ```text
 SECRET_KEY=replace-with-a-long-random-secret-at-least-32-characters
+DATABASE_URL=postgresql+psycopg://user:password@host:5432/postgres?sslmode=require
+```
+
+Use managed PostgreSQL for multi-user deployment. Supabase, Neon, and Render PostgreSQL all work as long as `DATABASE_URL` is set. `postgres://...` and `postgresql://...` URLs are automatically normalized to the `psycopg` SQLAlchemy driver.
+
+Run migrations from the backend directory after setting `DATABASE_URL`:
+
+```bash
+alembic upgrade head
 ```
 
 Optional environment variables:
@@ -39,12 +48,11 @@ GROQ_MODEL=llama-3.1-8b-instant
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_AUTH_TOKEN=your-twilio-auth-token
 TWILIO_FROM_PHONE=+15551234567
-PHYSIO_DB_PATH=physio.db
 UPLOAD_DIR=uploads
 TRANSLATION_PROVIDER=mymemory
 ```
 
-SQLite is fine for a demo. For production clinical data, use managed storage/database, regular backups, and a privacy/security review before collecting real patient information.
+SQLite is still available only as a local fallback via `PHYSIO_DB_PATH`. Do not use the SQLite file for production or multiple users. For production clinical data, use managed PostgreSQL, backups, private storage for uploads, and a privacy/security review before collecting real patient information.
 
 ## Frontend
 
