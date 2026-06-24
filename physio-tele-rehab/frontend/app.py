@@ -303,7 +303,7 @@ def render_document_file(document):
 
 
 def init_state():
-    defaults = {"token": None, "role": None, "clinical_role": None, "route": "login", "language": "English", "theme": "Bright", "translation_cache": {}}
+    defaults = {"token": None, "role": None, "clinical_role": None, "route": "login", "language": "English", "theme": "Bright", "translation_cache": {}, "auth_mode": "login"}
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
 
@@ -369,74 +369,92 @@ def login_page():
     page_header(
         "Remote rehabilitation that feels close",
         "Secure patient care, therapist workflows, outcome tracking, records, and textbook-grounded AI support.",
-        "Clinical workspace",
+        "Physio Tele-Rehab",
     )
-    left, right = st.columns([1.05, 0.95], gap="large")
-    with left:
-        st.subheader("Login")
-        with st.form("login"):
-            identifier = st.text_input("Email / Phone / Patient ID")
-            password = st.text_input("Password", type="password")
-            if st.form_submit_button("Login"):
-                result = api("POST", "/auth/login", json={"identifier": identifier, "password": password})
-                if result:
-                    st.session_state.token = result["access_token"]
-                    st.session_state.role = result["role"]
-                    st.session_state.clinical_role = result.get("clinical_role")
-                    st.session_state.user_id = result.get("user_id")
-                    st.session_state.email_verified = result.get("email_verified", True)
-                    if result["role"] == "patient" and not st.session_state.email_verified:
+    auth_mode = st.session_state.get("auth_mode", "login")
+    center, side = st.columns([0.92, 0.08])
+    with center:
+        if auth_mode == "login":
+            st.subheader("Login")
+            with st.form("login"):
+                identifier = st.text_input("Email / Phone / Patient ID")
+                password = st.text_input("Password", type="password")
+                if st.form_submit_button("Login"):
+                    result = api("POST", "/auth/login", json={"identifier": identifier, "password": password})
+                    if result:
+                        st.session_state.token = result["access_token"]
+                        st.session_state.role = result["role"]
+                        st.session_state.clinical_role = result.get("clinical_role")
+                        st.session_state.user_id = result.get("user_id")
+                        st.session_state.email_verified = result.get("email_verified", True)
+                        if result["role"] == "patient" and not st.session_state.email_verified:
+                            go("verify_email")
+                        else:
+                            go("patient" if result["role"] == "patient" else "therapist")
+
+            st.markdown("<p class='ptr-auth-switch'>Do not have an account?</p>", unsafe_allow_html=True)
+            if st.button("Create an account"):
+                st.session_state.auth_mode = "signup"
+                st.rerun()
+
+            with st.expander("Forgot Password"):
+                reset_identifier = st.text_input("Email / Phone Number", key="reset_identifier_input")
+                if st.button("Send Reset Code"):
+                    result = api("POST", "/auth/request-password-reset", json={"identifier": reset_identifier})
+                    if result:
+                        st.session_state.reset_identifier_value = reset_identifier
+                        st.success(result.get("message", "Reset Code Sent."))
+                        if result.get("delivery_status"):
+                            st.info(f"{result.get('delivery_channel', '').title()} Delivery: {result.get('delivery_status')}")
+                        if result.get("delivery_detail"):
+                            st.caption(result.get("delivery_detail"))
+                reset_code = st.text_input("Reset Code")
+                new_password = st.text_input("New Password", type="password", key="reset_new_password")
+                confirm_password = st.text_input("Confirm New Password", type="password")
+                if st.button("Change Password"):
+                    result = api("POST", "/auth/reset-password", json={"identifier": st.session_state.get("reset_identifier_value", reset_identifier), "code": reset_code, "new_password": new_password, "confirm_password": confirm_password})
+                    if result:
+                        st.success("Password Changed. You Can Login Now.")
+        else:
+            st.subheader("Create Account")
+            st.caption("Create a patient account. Your email will be verified before onboarding.")
+            with st.form("register"):
+                full_name = st.text_input("Full Name")
+                email = st.text_input("Email")
+                phone = st.text_input("Phone Number")
+                password = st.text_input("New Password", type="password")
+                accepted = []
+                with st.expander("Terms, consent, and privacy", expanded=True):
+                    for item in CONSENT_ITEMS:
+                        st.markdown(
+                            f"""
+                            <div class="ptr-consent-copy">
+                                <strong>{raw_text(item['title'])}</strong>
+                                <p>{raw_text(item['content'])}</p>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                        if st.checkbox(f"I agree to the {item['title']}"):
+                            accepted.append(item["type"])
+                if st.form_submit_button("Sign Up"):
+                    result = api("POST", "/auth/register", json={"full_name": full_name, "email": email, "phone_number": phone, "role": "patient", "clinical_role": None, "password": password, "accepted_consents": accepted})
+                    if result:
+                        if result.get("invitation_email_status"):
+                            st.info(f"Invitation Email: {result.get('invitation_email_status')}")
+                        if result.get("verification_email_status"):
+                            st.info(f"Verification Email: {result.get('verification_email_status')}")
+                        st.session_state.last_verification_email_status = result.get("verification_email_status")
+                        st.session_state.last_verification_email_detail = result.get("verification_email_detail")
+                        st.session_state.token = result["access_token"]
+                        st.session_state.role = result["role"]
+                        st.session_state.clinical_role = result.get("clinical_role")
+                        st.session_state.user_id = result.get("user_id")
+                        st.session_state.email_verified = result.get("email_verified", False)
                         go("verify_email")
-                    else:
-                        go("patient" if result["role"] == "patient" else "therapist")
-
-        with st.expander("Forgot Password"):
-            reset_identifier = st.text_input("Email / Phone Number", key="reset_identifier_input")
-            if st.button("Send Reset Code"):
-                result = api("POST", "/auth/request-password-reset", json={"identifier": reset_identifier})
-                if result:
-                    st.session_state.reset_identifier_value = reset_identifier
-                    st.success(result.get("message", "Reset Code Sent."))
-                    if result.get("delivery_status"):
-                        st.info(f"{result.get('delivery_channel', '').title()} Delivery: {result.get('delivery_status')}")
-                    if result.get("delivery_detail"):
-                        st.caption(result.get("delivery_detail"))
-            reset_code = st.text_input("Reset Code")
-            new_password = st.text_input("New Password", type="password", key="reset_new_password")
-            confirm_password = st.text_input("Confirm New Password", type="password")
-            if st.button("Change Password"):
-                result = api("POST", "/auth/reset-password", json={"identifier": st.session_state.get("reset_identifier_value", reset_identifier), "code": reset_code, "new_password": new_password, "confirm_password": confirm_password})
-                if result:
-                    st.success("Password Changed. You Can Login Now.")
-
-    with right:
-        st.subheader("Create Account")
-        with st.form("register"):
-            full_name = st.text_input("Full Name")
-            email = st.text_input("Email")
-            phone = st.text_input("Phone Number")
-            password = st.text_input("New Password", type="password")
-            accepted = []
-            for item in CONSENT_ITEMS:
-                st.markdown(f"#### {item['title']}")
-                st.write(item["content"])
-                if st.checkbox(f"I Have Read And Agree To The {item['title']}"):
-                    accepted.append(item["type"])
-            if st.form_submit_button("Sign Up"):
-                result = api("POST", "/auth/register", json={"full_name": full_name, "email": email, "phone_number": phone, "role": "patient", "clinical_role": None, "password": password, "accepted_consents": accepted})
-                if result:
-                    if result.get("invitation_email_status"):
-                        st.info(f"Invitation Email: {result.get('invitation_email_status')}")
-                    if result.get("verification_email_status"):
-                        st.info(f"Verification Email: {result.get('verification_email_status')}")
-                    st.session_state.last_verification_email_status = result.get("verification_email_status")
-                    st.session_state.last_verification_email_detail = result.get("verification_email_detail")
-                    st.session_state.token = result["access_token"]
-                    st.session_state.role = result["role"]
-                    st.session_state.clinical_role = result.get("clinical_role")
-                    st.session_state.user_id = result.get("user_id")
-                    st.session_state.email_verified = result.get("email_verified", False)
-                    go("verify_email")
+            if st.button("Back to login"):
+                st.session_state.auth_mode = "login"
+                st.rerun()
 
 
 def verify_email_page():
@@ -1048,7 +1066,7 @@ def admin_research():
 
 def sidebar():
     with st.sidebar:
-        st.markdown("<div class='ptr-sidebar-brand'>Physio Tele-Rehab<span>Clinical workspace</span></div>", unsafe_allow_html=True)
+        st.markdown("<div class='ptr-sidebar-brand'>Physio Tele-Rehab</div>", unsafe_allow_html=True)
         current_language = st.session_state.get("language", "English")
         selected_language = st.selectbox("Language", LANGUAGES, index=LANGUAGES.index(current_language) if current_language in LANGUAGES else 0, key="language_picker")
         if selected_language != current_language:
@@ -1101,25 +1119,35 @@ def apply_theme():
         html, body, .stApp, [data-testid="stAppViewContainer"] {
             overflow-x: hidden;
         }
-        [data-testid="stSidebar"] {
+        [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
             background: linear-gradient(180deg, #07111f 0%, #0b1f36 58%, #102a43 100%)!important;
             border-right: 1px solid rgba(255,255,255,.08);
         }
-        [data-testid="stSidebar"] * { color: #e5edf7!important; }
+        [data-testid="stSidebar"] label,
+        [data-testid="stSidebar"] h1,
+        [data-testid="stSidebar"] h2,
+        [data-testid="stSidebar"] h3,
+        [data-testid="stSidebar"] h4,
+        [data-testid="stSidebar"] p,
+        [data-testid="stSidebar"] small {
+            color: #e5edf7!important;
+        }
+        [data-testid="stSidebar"] [data-baseweb="select"] *,
+        [data-testid="stSidebar"] input,
+        [data-testid="stSidebar"] textarea {
+            color: #101828!important;
+        }
+        [data-testid="stSidebar"] [role="radiogroup"] label span {
+            color: #e5edf7!important;
+        }
         .ptr-sidebar-brand {
+            color:#ffffff!important;
             font-weight: 800;
-            font-size: 1.1rem;
+            font-size: 1.15rem;
             line-height: 1.15;
-            padding: .85rem .65rem 1rem;
+            padding: .85rem .65rem 1.15rem;
             margin-bottom: .4rem;
             border-bottom: 1px solid rgba(255,255,255,.12);
-        }
-        .ptr-sidebar-brand span {
-            display:block;
-            margin-top:.35rem;
-            font-size:.76rem;
-            font-weight:500;
-            color:#aebbd0!important;
         }
         .ptr-hero {
             background:
@@ -1150,6 +1178,31 @@ def apply_theme():
             font-size:.78rem;
             letter-spacing:.08em;
             font-weight:800;
+        }
+        .ptr-auth-switch {
+            margin: 1rem 0 .25rem;
+            color: var(--ptr-muted)!important;
+            font-size: .95rem;
+        }
+        .ptr-consent-copy {
+            border-top: 1px solid var(--ptr-line);
+            padding: .65rem 0 .45rem;
+        }
+        .ptr-consent-copy:first-child {
+            border-top: 0;
+        }
+        .ptr-consent-copy strong {
+            display:block;
+            color: var(--ptr-text)!important;
+            font-size: .9rem;
+            line-height: 1.35;
+            margin-bottom: .2rem;
+        }
+        .ptr-consent-copy p {
+            color: var(--ptr-muted)!important;
+            font-size: .78rem;
+            line-height: 1.45;
+            margin: 0;
         }
         .ptr-stat {
             min-height: 132px;
