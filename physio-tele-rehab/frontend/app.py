@@ -23,7 +23,7 @@ def get_setting(name: str, default: str = "") -> str:
     return default
 
 
-API = get_setting("API_URL", "https://physiotelerehab.onrender.com/api")
+API = get_setting("API_URL", "http://127.0.0.1:8001/api")
 
 LANGUAGES = [
     "English", "Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Assamese", "Aymara", "Azerbaijani",
@@ -235,9 +235,9 @@ def api(method, path, **kwargs):
         detail = payload.get("detail", response.text or f"HTTP {response.status_code}")
         st.error(detail)
     except requests.Timeout:
-        st.error("Connection timed out. The server may still be waking up or sending email. Please wait a moment and try again.")
+        st.error(f"Connection timed out while calling {API}. Make sure the backend is running and API_URL points to it.")
     except Exception as exc:
-        st.error(f"Connection Error: {exc}")
+        st.error(f"Connection Error while calling {API}: {exc}")
     return None
 
 
