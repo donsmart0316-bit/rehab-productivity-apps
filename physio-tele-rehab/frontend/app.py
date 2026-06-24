@@ -1306,6 +1306,45 @@ def apply_theme():
         input, textarea, [data-baseweb="select"] > div {
             border-radius: 8px!important;
         }
+        .ptr-hero .ptr-eyebrow,
+        .ptr-hero h1,
+        .ptr-hero p,
+        section.ptr-hero h1,
+        section.ptr-hero p {
+            color: #ffffff!important;
+            opacity: 1!important;
+            filter: none!important;
+        }
+        .ptr-hero .ptr-eyebrow {
+            color: #a7f3e7!important;
+        }
+        [data-testid="stSidebar"] [data-baseweb="select"] > div {
+            background: #ffffff!important;
+            border-color: #cbd5e1!important;
+        }
+        [data-testid="stSidebar"] [data-baseweb="select"] span,
+        [data-testid="stSidebar"] [data-baseweb="select"] svg {
+            color: #101828!important;
+            fill: #101828!important;
+        }
+        [data-baseweb="popover"],
+        [data-baseweb="popover"] * ,
+        [role="listbox"],
+        [role="listbox"] * {
+            color: #101828!important;
+        }
+        [data-baseweb="popover"] {
+            background: #ffffff!important;
+        }
+        [role="option"] {
+            color: #101828!important;
+            background: #ffffff!important;
+        }
+        [role="option"]:hover,
+        [aria-selected="true"] {
+            background: #eef4ff!important;
+            color: #101828!important;
+        }
         h1, h2, h3 { letter-spacing: 0!important; }
         @media (max-width: 768px) {
             .block-container {
