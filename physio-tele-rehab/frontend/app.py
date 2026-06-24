@@ -395,6 +395,37 @@ def status_pill(label, tone="teal"):
     st.markdown(f"<span class='ptr-pill ptr-pill-{tone}'>{ui_text(label)}</span>", unsafe_allow_html=True)
 
 
+def therapist_focus_panel(patient, alerts=None, rag=None, notifications=None):
+    alerts = alerts or []
+    rag = rag or {}
+    notifications = notifications or []
+    name = patient.get("full_name") or f"Patient {patient.get('id', '')}".strip()
+    identifier = patient.get("patient_identifier") or patient.get("email") or "Patient profile"
+    status = str(patient.get("patient_status") or patient.get("status") or "Active care").replace("_", " ").title()
+    email = patient.get("email") or "No email on file"
+    phone = patient.get("phone_number") or patient.get("phone") or "No phone on file"
+    rag_state = "Ready" if rag.get("available", True) else "Needs setup"
+    st.markdown(
+        f"""
+        <section class="ptr-clinical-focus">
+            <div class="ptr-focus-main">
+                <span>{ui_text("Current Patient")}</span>
+                <h2>{raw_text(name)}</h2>
+                <p>{raw_text(identifier)} · {raw_text(status)}</p>
+            </div>
+            <div class="ptr-focus-grid">
+                <div><strong>{raw_text(email)}</strong><small>{ui_text("Email")}</small></div>
+                <div><strong>{raw_text(phone)}</strong><small>{ui_text("Phone")}</small></div>
+                <div><strong>{raw_text(len(alerts))}</strong><small>{ui_text("Clinical alerts")}</small></div>
+                <div><strong>{raw_text(len(notifications))}</strong><small>{ui_text("Appointment notices")}</small></div>
+                <div><strong>{raw_text(rag_state)}</strong><small>{ui_text("Textbook AI")}</small></div>
+            </div>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def login_page():
     page_header(
         "Remote rehabilitation that feels close",
@@ -732,33 +763,50 @@ def patient_dashboard():
 
 
 def therapist_dashboard():
-    page_header("Therapist Dashboard", "Clinical review queue, patient monitoring, records, messaging, and evidence-supported decisions.", "Therapist workspace")
+    therapist_label = st.session_state.get("clinical_role") or "Therapist"
+    page_header(
+        f"{time_greeting()}, {display_name(therapist_label)}",
+        "Clinical review queue, patient monitoring, records, messaging, and evidence-supported decisions.",
+        "Therapist workspace",
+    )
     dashboard_notifications()
     patients = api("GET", "/therapist/patients") or []
     unassigned = api("GET", "/therapist-assignments/unassigned-patients") or []
+    alerts = api("GET", "/clinical-alerts/") or []
+    notifications = api("GET", "/appointments/notifications/me") or []
+    rag = api("GET", "/clinical-records/textbook-rag/status") or {}
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         stat_card("Assigned Patients", len(patients), "Currently under your care", "teal")
     with c2:
         stat_card("Unassigned Queue", len(unassigned), "Patients waiting for therapist", "amber")
     with c3:
-        stat_card("Clinical Alerts", "Scan", "Use the alerts tab to refresh", "red")
+        stat_card("Clinical Alerts", len(alerts), "Flagged records to review", "red")
     with c4:
-        stat_card("AI + RAG", "Ready", "Textbook evidence workflow", "blue")
+        stat_card("AI + RAG", "Ready" if rag.get("available", True) else "Check", "Textbook evidence workflow", "blue")
+
+    selected = select_patient(patients)
+    if selected:
+        therapist_focus_panel(selected, alerts, rag, notifications)
+
     tabs = st.tabs(["Patients", "Queue", "Assessment", "Plan Builder", "Clinical Records", "Messages", "Appointments", "Exercise Library", "Coverage", "Video Consult", "Alerts", "Audit Logs", "Admin Research"])
     with tabs[0]:
         if patients:
+            st.caption("Assigned patient roster")
             st.dataframe(pd.DataFrame(patients), use_container_width=True)
         else:
             info_card("No assigned patients yet", "Claim a patient from the queue or wait for assignment.")
     with tabs[1]:
+        if not unassigned:
+            info_card("Queue is clear", "There are no patients waiting for therapist assignment right now.", "teal")
         for patient in unassigned:
             with st.container(border=True):
-                st.write(patient.get("full_name"))
+                st.markdown(f"**{raw_text(patient.get('full_name') or 'Unnamed Patient')}**", unsafe_allow_html=True)
+                status = str(patient.get("patient_status") or "waiting for assignment").replace("_", " ").title()
+                st.caption(f"{patient.get('email') or 'No email on file'} · {status}")
                 if st.button("Claim Patient", key=f"claim_{patient['id']}"):
                     api("POST", "/therapist-assignments/assign-therapist", json={"patient_id": patient["id"], "role": "primary"})
                     st.rerun()
-    selected = select_patient(patients)
     if not selected:
         return
     with tabs[2]:
@@ -1421,6 +1469,77 @@ def apply_theme():
         .ptr-pill-green { background:var(--ptr-green-soft); color:var(--ptr-green)!important; }
         .ptr-pill-amber { background:var(--ptr-amber-soft); color:var(--ptr-amber)!important; }
         .ptr-pill-red { background:var(--ptr-red-soft); color:var(--ptr-red)!important; }
+        .ptr-clinical-focus {
+            display:grid;
+            grid-template-columns: 1.05fr 1.7fr;
+            gap: 1rem;
+            align-items: stretch;
+            margin: .2rem 0 1.25rem;
+            padding: 1rem;
+            border-radius: 14px;
+            border: 1px solid rgba(23, 92, 211, .18);
+            background:
+                linear-gradient(135deg, rgba(255,255,255,.96), rgba(248,251,255,.9)),
+                radial-gradient(circle at 90% 10%, rgba(14,147,132,.16), transparent 28%);
+            box-shadow: 0 22px 54px rgba(16, 24, 40, .09);
+            transform: perspective(1000px) rotateX(.45deg);
+        }
+        .ptr-focus-main {
+            min-height: 148px;
+            padding: 1rem 1.1rem;
+            border-radius: 12px;
+            color:#fff!important;
+            background:
+                radial-gradient(circle at 86% 14%, rgba(167,243,231,.25), transparent 30%),
+                linear-gradient(135deg, #07111f 0%, #123b63 58%, #175cd3 100%);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 18px 34px rgba(23,92,211,.17);
+        }
+        .ptr-focus-main span {
+            display:block;
+            color:#a7f3e7!important;
+            font-size:.76rem;
+            font-weight:850;
+            letter-spacing:.08em;
+            text-transform:uppercase;
+            margin-bottom:.55rem;
+        }
+        .ptr-focus-main h2 {
+            color:#ffffff!important;
+            font-size:1.65rem;
+            line-height:1.1;
+            margin:.1rem 0 .35rem;
+        }
+        .ptr-focus-main p {
+            color:#d9e6f7!important;
+            margin:0;
+            font-size:.95rem;
+        }
+        .ptr-focus-grid {
+            display:grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap:.7rem;
+        }
+        .ptr-focus-grid div {
+            min-height: 96px;
+            padding:.85rem;
+            border:1px solid var(--ptr-line);
+            border-radius: 12px;
+            background: rgba(255,255,255,.84);
+            box-shadow: 0 12px 28px rgba(16,24,40,.055);
+        }
+        .ptr-focus-grid strong {
+            display:block;
+            color:var(--ptr-text)!important;
+            font-size:1.08rem;
+            line-height:1.2;
+            overflow-wrap:anywhere;
+        }
+        .ptr-focus-grid small {
+            display:block;
+            margin-top:.5rem;
+            color:var(--ptr-muted)!important;
+            font-weight:750;
+        }
         .ptr-message {
             background: var(--ptr-surface);
             border: 1px solid var(--ptr-line);
@@ -1575,6 +1694,10 @@ def apply_theme():
             .ptr-card {
                 padding: .9rem;
             }
+            .ptr-clinical-focus,
+            .ptr-focus-grid {
+                grid-template-columns: 1fr;
+            }
             .ptr-message {
                 padding: .75rem;
             }
@@ -1628,6 +1751,14 @@ def apply_theme():
             }
             [data-testid="stMetric"], [data-testid="stExpander"], [data-testid="stDataFrame"], .stTabs [data-baseweb="tab-list"] {
                 background:#111827!important; border-color:#334155!important;
+            }
+            .ptr-clinical-focus {
+                background: linear-gradient(135deg, rgba(15,23,42,.96), rgba(17,24,39,.94))!important;
+                border-color:#334155!important;
+            }
+            .ptr-focus-grid div {
+                background:#111827!important;
+                border-color:#334155!important;
             }
             </style>
             """,
