@@ -7,6 +7,8 @@ import requests
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
+st.set_page_config(page_title="Physio Tele-Rehab", layout="wide")
+
 
 def get_setting(name: str, default: str = "") -> str:
     value = os.getenv(name)
@@ -2338,7 +2340,6 @@ def apply_theme():
     )
 
 
-st.set_page_config(page_title="Physio Tele-Rehab", layout="wide")
 init_state()
 patch_streamlit_text()
 apply_theme()
