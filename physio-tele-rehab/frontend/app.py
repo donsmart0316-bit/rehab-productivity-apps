@@ -1091,6 +1091,9 @@ def apply_theme():
             --ptr-red-soft:#fee2e2;
         }
         .block-container { padding-top: 1.4rem; max-width: 1440px; }
+        html, body, .stApp, [data-testid="stAppViewContainer"] {
+            overflow-x: hidden;
+        }
         [data-testid="stSidebar"] {
             background: var(--ptr-navy)!important;
             border-right: 1px solid rgba(255,255,255,.08);
@@ -1242,6 +1245,60 @@ def apply_theme():
             border-radius: 8px!important;
         }
         h1, h2, h3 { letter-spacing: 0!important; }
+        @media (max-width: 768px) {
+            .block-container {
+                padding: .85rem .85rem 4rem!important;
+                max-width: 100%!important;
+            }
+            .ptr-hero {
+                padding: 1.15rem;
+                border-radius: 10px;
+                margin-top: .1rem;
+            }
+            .ptr-hero h1 {
+                font-size: 2rem;
+                line-height: 1.08;
+            }
+            .ptr-hero p {
+                font-size: .95rem;
+            }
+            .ptr-stat {
+                min-height: auto;
+                padding: .9rem;
+            }
+            .ptr-stat strong {
+                font-size: 1.65rem;
+            }
+            .ptr-card {
+                padding: .9rem;
+            }
+            .ptr-message {
+                padding: .75rem;
+            }
+            div[data-testid="column"] {
+                width: 100%!important;
+                flex: 1 1 100%!important;
+                min-width: 100%!important;
+                margin-bottom: .55rem;
+            }
+            .stTabs [data-baseweb="tab-list"] {
+                overflow-x: auto;
+                overflow-y: hidden;
+                flex-wrap: nowrap;
+                scrollbar-width: thin;
+            }
+            .stTabs [data-baseweb="tab"] {
+                white-space: nowrap;
+                min-width: max-content;
+            }
+            [data-testid="stDataFrame"], [data-testid="stTable"] {
+                overflow-x: auto;
+            }
+            .stButton > button, .stDownloadButton > button, [data-testid="stFormSubmitButton"] button {
+                width: 100%;
+                min-height: 42px;
+            }
+        }
         </style>
     """
     st.markdown(base_css, unsafe_allow_html=True)
