@@ -7,6 +7,9 @@ $ErrorActionPreference = "Stop"
 
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BackendRoot = Join-Path $ProjectRoot "backend"
+$WorkspaceRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $ProjectRoot))
+$VenvPython = Join-Path $WorkspaceRoot ".venv\Scripts\python.exe"
+$PythonExe = if (Test-Path $VenvPython) { $VenvPython } else { "python" }
 
 Set-Location $BackendRoot
 
@@ -22,9 +25,10 @@ $env:DATABASE_URL = $DatabaseUrl
 
 Write-Host ""
 Write-Host "Running database migrations..." -ForegroundColor Cyan
-python -m alembic upgrade head
+& $PythonExe -m alembic upgrade head
 
 Write-Host ""
 Write-Host "Starting Physio Tele-Rehab backend on http://127.0.0.1:$Port" -ForegroundColor Green
 Write-Host "Keep this window open while testing." -ForegroundColor Yellow
-python -m uvicorn app.main:app --reload --host 127.0.0.1 --port $Port
+Write-Host "Python: $PythonExe" -ForegroundColor DarkGray
+& $PythonExe -m uvicorn app.main:app --reload --host 127.0.0.1 --port $Port
