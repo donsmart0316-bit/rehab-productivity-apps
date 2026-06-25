@@ -241,6 +241,22 @@ def api(method, path, **kwargs):
     return None
 
 
+def action_success(message):
+    st.success(message)
+    try:
+        st.toast(message, icon="✓")
+    except Exception:
+        pass
+
+
+def action_failed(message):
+    st.error(message)
+    try:
+        st.toast(message, icon="!")
+    except Exception:
+        pass
+
+
 def format_dt(value):
     if not value:
         return ""
@@ -522,6 +538,8 @@ def login_page():
                         st.session_state.full_name = result.get("full_name")
                         st.session_state.user_id = result.get("user_id")
                         st.session_state.email_verified = result.get("email_verified", True)
+                        action_success("Login successful. Welcome back.")
+                        st.balloons()
                         if result["role"] == "patient" and not st.session_state.email_verified:
                             go("verify_email")
                         else:
@@ -932,37 +950,60 @@ def select_patient(patients):
 
 
 def assessment_form(patient):
-    with st.form("assessment"):
-        data = {"patient_id": patient["id"], "assessment_type": st.selectbox("Assessment Type", ["Initial", "Follow-Up", "Discharge"]), "subjective": st.text_area("Subjective History"), "objective": st.text_area("Objective Examination"), "range_of_motion": st.text_area("Range Of Motion"), "muscle_strength": st.text_area("Muscle Strength"), "balance": st.text_area("Balance"), "gait": st.text_area("Gait"), "functional_testing": st.text_area("Functional Testing"), "clinical_diagnosis": st.text_area("Clinical Diagnosis"), "assessment": st.text_area("Assessment"), "plan": st.text_area("Plan"), "outcome_measures": st.text_area("Outcome Measures"), "follow_up_recommendation": st.text_area("Follow-Up Recommendation"), "clinical_note": st.text_area("SOAP / Clinical Note")}
+    if st.session_state.pop("assessment_saved_success", False):
+        action_success("Assessment saved successfully.")
+    form_key = f"assessment_{patient['id']}_{st.session_state.get('assessment_form_nonce', 0)}"
+    with st.form(form_key):
+        data = {"patient_id": patient["id"], "assessment_type": st.selectbox("Assessment Type", ["Initial", "Follow-Up", "Discharge"], key=f"{form_key}_type"), "subjective": st.text_area("Subjective History", key=f"{form_key}_subjective"), "objective": st.text_area("Objective Examination", key=f"{form_key}_objective"), "range_of_motion": st.text_area("Range Of Motion", key=f"{form_key}_rom"), "muscle_strength": st.text_area("Muscle Strength", key=f"{form_key}_strength"), "balance": st.text_area("Balance", key=f"{form_key}_balance"), "gait": st.text_area("Gait", key=f"{form_key}_gait"), "functional_testing": st.text_area("Functional Testing", key=f"{form_key}_functional"), "clinical_diagnosis": st.text_area("Clinical Diagnosis", key=f"{form_key}_diagnosis"), "assessment": st.text_area("Assessment", key=f"{form_key}_assessment"), "plan": st.text_area("Plan", key=f"{form_key}_plan"), "outcome_measures": st.text_area("Outcome Measures", key=f"{form_key}_outcomes"), "follow_up_recommendation": st.text_area("Follow-Up Recommendation", key=f"{form_key}_followup"), "clinical_note": st.text_area("SOAP / Clinical Note", key=f"{form_key}_note")}
         if st.form_submit_button("Save Assessment"):
-            api("POST", "/assessments/create", json=data)
+            result = api("POST", "/assessments/create", json=data)
+            if result:
+                st.session_state.assessment_saved_success = True
+                st.session_state.assessment_form_nonce = st.session_state.get("assessment_form_nonce", 0) + 1
+                st.rerun()
+            else:
+                action_failed("Assessment failed. Please check the form and try again.")
 
 
 def plan_builder(patient):
     exercises = api("GET", "/exercises/") or []
-    condition_map = api("GET", "/recommendations/condition-map") or {}
-    condition_options = list(condition_map.keys()) or ["General Rehabilitation"]
-    patient_condition = patient.get("condition") or condition_options[0]
-    condition_index = condition_options.index(patient_condition) if patient_condition in condition_options else 0
-    st.markdown("#### AI exercise recommendation support")
-    condition = st.selectbox("Condition For Recommendation", condition_options, index=condition_index)
-    assessment_summary = st.text_area("Assessment Summary For AI", value=patient.get("condition_notes") or patient.get("notes") or "", height=90)
+    latest_assessments = api("GET", f"/assessments/patient/{patient['id']}") or []
+    progress_context = api("GET", f"/progress/patient/{patient['id']}") or {}
+    st.markdown("#### Consultant AI plan of care support")
+    st.caption("The AI uses the typed condition, your prompt, saved assessments, progress/session data, textbook RAG, and optional web evidence snippets. Therapist review is required before assigning care.")
+    condition = st.text_input("Condition For Recommendation", value=patient.get("condition") or "General rehabilitation")
+    latest_summary = ""
+    if latest_assessments:
+        latest = latest_assessments[0]
+        latest_summary = "\n".join(
+            str(latest.get(key) or "")
+            for key in ["subjective", "objective", "assessment", "plan", "clinical_diagnosis", "outcome_measures", "clinical_note"]
+            if latest.get(key)
+        )
+    assessment_summary = st.text_area("Assessment Summary For AI", value=latest_summary or patient.get("condition_notes") or patient.get("notes") or "", height=120)
     precautions_for_ai = st.text_area("Precautions / Contraindications For AI", value=patient.get("precautions") or "", height=75)
+    therapist_prompt = st.text_area("Question / Extra Instructions For Consultant AI", value="Recommend an international-standard plan of care and exercise progression for this patient.", height=90)
     rec_key = f"ai_exercise_recommendation_{patient['id']}"
     if st.button("Generate Therapist Recommendation", key=f"generate_plan_ai_{patient['id']}"):
         recommendation = api(
             "POST",
             "/recommendations/plan",
+            timeout=90,
             json={
+                "patient_id": patient["id"],
                 "condition": condition,
                 "assessment_summary": assessment_summary,
                 "goals": patient.get("goals") or "",
                 "precautions": precautions_for_ai,
+                "progress_context": progress_context,
+                "therapist_prompt": therapist_prompt,
             },
         )
         if recommendation:
             st.session_state[rec_key] = recommendation
-            st.success("Recommendation generated for therapist review.")
+            action_success("Consultant AI recommendation generated for therapist review.")
+        else:
+            action_failed("AI recommendation failed. Check backend/API settings and try again.")
 
     recommendation = st.session_state.get(rec_key)
     suggested_names = recommendation.get("recommendations", []) if recommendation else []
@@ -972,9 +1013,23 @@ def plan_builder(patient):
         with st.expander("Review AI recommendation before assigning", expanded=True):
             st.write("Suggested exercises:")
             st.write(", ".join(suggested_names) if suggested_names else "No named exercise suggestions returned.")
+            if recommendation.get("plan_of_care"):
+                st.markdown("##### Consultant plan of care")
+                st.write(recommendation.get("plan_of_care"))
             if recommendation.get("ai_exercise_guidance"):
+                st.markdown("##### Exercise and progression guidance")
                 st.write(recommendation.get("ai_exercise_guidance"))
             st.caption(recommendation.get("evidence_justification", "Therapist review required."))
+            followup = st.text_area("Ask The Consultant AI To Clarify Or Modify", key=f"ai_followup_{patient['id']}", placeholder="Example: Modify this for a patient with poor adherence and high pain after exercise.")
+            if st.button("Ask Follow-Up", key=f"ask_ai_followup_{patient['id']}"):
+                chat = api("POST", "/recommendations/chat", timeout=90, json={"patient_id": patient["id"], "question": followup, "previous_answer": recommendation.get("plan_of_care") or recommendation.get("ai_exercise_guidance") or ""})
+                if chat:
+                    st.session_state[rec_key]["plan_of_care"] = chat.get("answer")
+                    st.session_state[rec_key]["ai_exercise_guidance"] = chat.get("answer")
+                    action_success("Consultant AI updated the recommendation.")
+                    st.rerun()
+                else:
+                    action_failed("AI follow-up failed.")
 
     selected = st.multiselect("Exercises To Assign", [x["id"] for x in exercises], default=suggested_ids, format_func=lambda i: next((x["name"] for x in exercises if x["id"] == i), i))
     with st.form("plan"):
@@ -986,7 +1041,11 @@ def plan_builder(patient):
         frequency = st.number_input("Frequency Per Week", 1, 14, 3)
         duration = st.number_input("Duration Weeks", 1, 52, 6)
         if st.form_submit_button("Create Plan"):
-            api("POST", "/exercise-plans/create", json={"patient_id": patient["id"], "title": title, "diagnosis_summary": condition, "clinical_notes": notes, "goals": [goals], "progression_notes": progression, "frequency_per_week": frequency, "duration_weeks": duration, "precautions": precautions_for_ai, "exercise_prescriptions": selected})
+            result = api("POST", "/exercise-plans/create", json={"patient_id": patient["id"], "title": title, "diagnosis_summary": condition, "clinical_notes": notes, "goals": [goals], "progression_notes": progression, "frequency_per_week": frequency, "duration_weeks": duration, "precautions": precautions_for_ai, "exercise_prescriptions": selected})
+            if result:
+                action_success("Plan created successfully and is now visible to the patient.")
+            else:
+                action_failed("Plan creation failed.")
 
 
 def appointments_page(patient):
@@ -994,7 +1053,9 @@ def appointments_page(patient):
         if st.button("Send Due Appointment Reminders"):
             result = api("POST", "/appointments/send-reminders")
             if result:
-                st.success(f"Reminders Queued: {result.get('reminders_sent', 0)}")
+                action_success(f"Reminders queued: {result.get('reminders_sent', 0)}")
+            else:
+                action_failed("Reminder sending failed.")
         with st.form(f"appt_{patient['id']}"):
             appt_type = st.selectbox("Appointment Type", ["Tele-Rehabilitation", "Initial Assessment", "Follow-Up", "Discharge Review"])
             date = st.date_input("Appointment Date")
@@ -1009,7 +1070,10 @@ def appointments_page(patient):
                     result = api("POST", "/appointments/", json={"patient_id": patient["id"], "appointment_type": appt_type, "scheduled_start": scheduled_start, "reason": reason})
                     if result:
                         st.session_state.last_appointment_submit = appointment_key
+                        action_success("Appointment scheduled successfully.")
                         st.rerun()
+                    else:
+                        action_failed("Appointment scheduling failed.")
     appointments = api("GET", f"/appointments/patient/{patient['id']}") or []
     notes = api("GET", "/appointments/notifications/me") or []
     if notes:
@@ -1027,14 +1091,22 @@ def appointments_page(patient):
                 if not reason.strip():
                     st.error("Enter A Cancellation Reason.")
                 else:
-                    api("PUT", f"/appointments/{appt['id']}", json={"status": "Cancelled", "cancellation_reason": reason})
-                    st.rerun()
+                    result = api("PUT", f"/appointments/{appt['id']}", json={"status": "Cancelled", "cancellation_reason": reason})
+                    if result:
+                        action_success("Appointment cancelled successfully.")
+                        st.rerun()
+                    else:
+                        action_failed("Appointment cancellation failed.")
             if st.session_state.role == "therapist" and st.button("Delete Mistake", key=f"delete_{appt['id']}"):
                 if not reason.strip():
                     st.error("Enter A Deletion Reason.")
                 else:
-                    api("DELETE", f"/appointments/{appt['id']}", params={"cancellation_reason": reason})
-                    st.rerun()
+                    result = api("DELETE", f"/appointments/{appt['id']}", params={"cancellation_reason": reason})
+                    if result:
+                        action_success("Appointment deleted successfully.")
+                        st.rerun()
+                    else:
+                        action_failed("Appointment deletion failed.")
 
 
 def message_box(patient_id):
@@ -1043,17 +1115,27 @@ def message_box(patient_id):
     if col1.button("Start Video Call", key=f"video_call_{patient_id}"):
         result = api("POST", "/communications/call", json={"patient_id": patient_id, "call_type": "video"})
         if result:
+            action_success("Video call link created.")
             st.rerun()
+        else:
+            action_failed("Video call link creation failed.")
     if col2.button("Start Voice Call", key=f"voice_call_{patient_id}"):
         result = api("POST", "/communications/call", json={"patient_id": patient_id, "call_type": "voice"})
         if result:
+            action_success("Voice call link created.")
             st.rerun()
+        else:
+            action_failed("Voice call link creation failed.")
     with st.form(f"msg_{patient_id}"):
         content = st.text_area("Message")
         if st.form_submit_button("Send Text"):
             if content.strip():
-                api("POST", "/communications/", json={"patient_id": patient_id, "message_type": "text", "content": content})
-                st.rerun()
+                result = api("POST", "/communications/", json={"patient_id": patient_id, "message_type": "text", "content": content})
+                if result:
+                    action_success("Message sent successfully.")
+                    st.rerun()
+                else:
+                    action_failed("Message failed to send.")
             else:
                 st.error("Type A Message First.")
     message_type = st.selectbox("Attachment Type", ["image", "document", "voice", "video"], key=f"attach_type_{patient_id}")
@@ -1066,8 +1148,10 @@ def message_box(patient_id):
         files = {"file": (upload.name, upload.getvalue(), upload.type or "application/octet-stream")}
         result = api("POST", "/communications/upload", data={"patient_id": str(patient_id), "message_type": message_type, "content": ""}, files=files)
         if result:
-            st.success("Attachment Sent.")
+            action_success("Attachment sent successfully.")
             st.rerun()
+        else:
+            action_failed("Attachment upload failed.")
     messages = api("GET", f"/communications/patient/{patient_id}") or []
     for msg in messages:
         sender = message_sender_label(msg)
@@ -1107,7 +1191,11 @@ def exercise_library():
     with st.form("exercise"):
         data = {"name": st.text_input("Exercise Name"), "description": st.text_area("Description"), "condition": st.text_input("Condition"), "body_region": st.text_input("Body Region"), "difficulty": st.selectbox("Difficulty", ["Easy", "Moderate", "Hard"]), "reps": st.text_input("Reps"), "sets": st.text_input("Sets"), "safety_precautions": st.text_area("Safety Precautions"), "video_url": st.text_input("Video URL"), "image_url": st.text_input("Image URL")}
         if st.form_submit_button("Add Exercise"):
-            api("POST", "/exercises/", json=data)
+            result = api("POST", "/exercises/", json=data)
+            if result:
+                action_success("Exercise added successfully.")
+            else:
+                action_failed("Exercise creation failed.")
     st.dataframe(pd.DataFrame(api("GET", "/exercises/") or []), use_container_width=True)
 
 
@@ -1121,11 +1209,19 @@ def coverage_panel(patient):
         end = st.date_input("Coverage End")
         reason = st.text_area("Coverage Reason")
         if st.button("Assign Temporary Coverage"):
-            api("POST", "/therapist-assignments/assign-therapist", json={"patient_id": patient["id"], "therapist_id": therapist_id, "role": "temporary", "coverage_start": str(start), "temporary_until": str(end), "coverage_reason": reason, "primary_therapist_id": patient.get("therapist_id")})
-            st.rerun()
+            result = api("POST", "/therapist-assignments/assign-therapist", json={"patient_id": patient["id"], "therapist_id": therapist_id, "role": "temporary", "coverage_start": str(start), "temporary_until": str(end), "coverage_reason": reason, "primary_therapist_id": patient.get("therapist_id")})
+            if result:
+                action_success("Temporary coverage assigned successfully.")
+                st.rerun()
+            else:
+                action_failed("Temporary coverage assignment failed.")
     if st.button("Expire Ended Temporary Coverage"):
-        api("POST", "/therapist-assignments/expire-temporary")
-        st.rerun()
+        result = api("POST", "/therapist-assignments/expire-temporary")
+        if result:
+            action_success("Expired temporary coverage cleared.")
+            st.rerun()
+        else:
+            action_failed("Coverage expiry failed.")
     st.dataframe(pd.DataFrame(api("GET", f"/therapist-assignments/patient/{patient['id']}") or []), use_container_width=True)
 
 
@@ -1136,8 +1232,12 @@ def video_consult_panel(patient):
         start_time = st.time_input("Video Time", value=time(12, 0))
         notes = st.text_area("Supervision Notes")
         if st.form_submit_button("Schedule Video Consultation"):
-            api("POST", "/video-consultations/", json={"patient_id": patient["id"], "scheduled_start": datetime.combine(date, start_time).isoformat(), "supervision_notes": notes})
-            st.rerun()
+            result = api("POST", "/video-consultations/", json={"patient_id": patient["id"], "scheduled_start": datetime.combine(date, start_time).isoformat(), "supervision_notes": notes})
+            if result:
+                action_success("Video consultation scheduled successfully.")
+                st.rerun()
+            else:
+                action_failed("Video consultation scheduling failed.")
     consultations = api("GET", f"/video-consultations/patient/{patient['id']}") or []
     for consult in consultations:
         st.write(f"{consult.get('scheduled_start')} - {consult.get('status')}")
@@ -1148,8 +1248,12 @@ def video_consult_panel(patient):
 
 def alerts_panel():
     if st.session_state.role in ["therapist", "admin"] and st.button("Scan Clinical Alerts"):
-        api("POST", "/clinical-alerts/scan")
-        st.rerun()
+        result = api("POST", "/clinical-alerts/scan")
+        if result:
+            action_success(f"Clinical alert scan complete. New alerts: {result.get('alerts_created', 0)}")
+            st.rerun()
+        else:
+            action_failed("Clinical alert scan failed.")
     alerts = api("GET", "/clinical-alerts/") or []
     if alerts:
         st.dataframe(pd.DataFrame(alerts), use_container_width=True)
@@ -1209,8 +1313,10 @@ def clinical_records(patient):
                     files = {"file": (upload.name, upload.getvalue(), upload.type or "application/octet-stream")}
                     result = api("POST", "/clinical-records/documents/upload", data={"patient_id": str(patient["id"]), "document_type": doc_type, "title": title or upload.name, "description": description or ""}, files=files)
                     if result:
-                        st.success("Medical Document Uploaded.")
+                        action_success("Medical document uploaded successfully.")
                         st.rerun()
+                    else:
+                        action_failed("Medical document upload failed.")
         else:
             info_card("Patient-uploaded documents", "View and download MRI, CT, X-Ray, lab, referral, image, and other clinical files.")
         documents = api("GET", f"/clinical-records/documents/patient/{patient['id']}") or []
@@ -1236,7 +1342,11 @@ def clinical_records(patient):
                 max_score = st.number_input("Max Score", value=100.0)
                 interpretation = st.text_area("Interpretation")
                 if st.form_submit_button("Save Outcome"):
-                    api("POST", "/clinical-records/outcome-measures", json={"patient_id": patient["id"], "measure_name": name, "score": score, "max_score": max_score, "interpretation": interpretation})
+                    result = api("POST", "/clinical-records/outcome-measures", json={"patient_id": patient["id"], "measure_name": name, "score": score, "max_score": max_score, "interpretation": interpretation})
+                    if result:
+                        action_success("Outcome measure saved successfully.")
+                    else:
+                        action_failed("Outcome measure save failed.")
         outcomes = api("GET", f"/clinical-records/outcome-measures/patient/{patient['id']}") or []
         if outcomes:
             for outcome in outcomes:
@@ -1259,7 +1369,11 @@ def clinical_records(patient):
                 unit = st.text_input("Unit")
                 notes = st.text_area("Progress Notes")
                 if st.form_submit_button("Save Objective Metric"):
-                    api("POST", "/clinical-records/objective-progress", json={"patient_id": patient["id"], "metric_type": metric_type, "metric_name": metric_name, "value": value, "unit": unit, "notes": notes})
+                    result = api("POST", "/clinical-records/objective-progress", json={"patient_id": patient["id"], "metric_type": metric_type, "metric_name": metric_name, "value": value, "unit": unit, "notes": notes})
+                    if result:
+                        action_success("Objective metric saved successfully.")
+                    else:
+                        action_failed("Objective metric save failed.")
         metrics = api("GET", f"/clinical-records/objective-progress/patient/{patient['id']}") or []
         if metrics:
             frame = pd.DataFrame(metrics)
@@ -1284,8 +1398,10 @@ def clinical_records(patient):
             if st.button("Generate AI Suggestion"):
                 result = api("POST", "/clinical-records/ai-suggestions", json={"patient_id": patient["id"], "request_type": "support", "source_text": source})
                 if result:
-                    st.success("AI suggestion generated.")
+                    action_success("AI suggestion generated successfully.")
                     st.rerun()
+                else:
+                    action_failed("AI suggestion failed.")
         suggestions = api("GET", f"/clinical-records/ai-suggestions/patient/{patient['id']}") or []
         for item in suggestions:
             with st.expander(item.get("request_type", "AI Suggestion")):
@@ -1293,11 +1409,19 @@ def clinical_records(patient):
                 if is_therapist:
                     col1, col2 = st.columns(2)
                     if col1.button("Approve", key=f"approve_ai_{item['id']}"):
-                        api("PUT", f"/clinical-records/ai-suggestions/{item['id']}/review", json={"approved": True})
-                        st.rerun()
+                        result = api("PUT", f"/clinical-records/ai-suggestions/{item['id']}/review", json={"approved": True})
+                        if result:
+                            action_success("AI suggestion approved.")
+                            st.rerun()
+                        else:
+                            action_failed("AI approval failed.")
                     if col2.button("Reject", key=f"reject_ai_{item['id']}"):
-                        api("PUT", f"/clinical-records/ai-suggestions/{item['id']}/review", json={"approved": False})
-                        st.rerun()
+                        result = api("PUT", f"/clinical-records/ai-suggestions/{item['id']}/review", json={"approved": False})
+                        if result:
+                            action_success("AI suggestion rejected.")
+                            st.rerun()
+                        else:
+                            action_failed("AI rejection failed.")
     with tabs[4]:
         if is_therapist:
             with st.form("discharge"):
@@ -1307,8 +1431,12 @@ def clinical_records(patient):
                 hep = st.text_area("Home Exercise Program")
                 summary = st.text_area("Discharge Summary")
                 if st.form_submit_button("Discharge Patient"):
-                    api("POST", "/clinical-records/discharge", json={"patient_id": patient["id"], "final_assessment": final, "outcome_measures_summary": outcomes, "achieved_goals": goals, "home_exercise_program": hep, "discharge_summary": summary})
-                    st.rerun()
+                    result = api("POST", "/clinical-records/discharge", json={"patient_id": patient["id"], "final_assessment": final, "outcome_measures_summary": outcomes, "achieved_goals": goals, "home_exercise_program": hep, "discharge_summary": summary})
+                    if result:
+                        action_success("Patient discharged successfully.")
+                        st.rerun()
+                    else:
+                        action_failed("Patient discharge failed.")
         st.dataframe(pd.DataFrame(api("GET", f"/clinical-records/discharge/patient/{patient['id']}") or []), use_container_width=True)
     if is_therapist:
         with tabs[5]:

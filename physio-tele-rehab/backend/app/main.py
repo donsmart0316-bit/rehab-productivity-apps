@@ -10,6 +10,7 @@ import smtplib
 import ssl
 from typing import Any, Optional
 from urllib.parse import quote
+from urllib.parse import urlencode
 from urllib import request as urlrequest
 from urllib.error import URLError
 
@@ -47,6 +48,7 @@ ALGORITHM = "HS256"
 TRANSLATION_API_URL = os.getenv("TRANSLATION_API_URL", "").strip()
 TRANSLATION_API_KEY = os.getenv("TRANSLATION_API_KEY", "").strip()
 TRANSLATION_PROVIDER = os.getenv("TRANSLATION_PROVIDER", "mymemory").strip().lower()
+AI_WEB_SEARCH_ENABLED = os.getenv("AI_WEB_SEARCH_ENABLED", "true").lower() == "true"
 REPO_ROOT = BASE_DIR.parents[1] if len(BASE_DIR.parents) > 1 else BASE_DIR.parent
 DEFAULT_TEXTBOOK_VECTORSTORE_PATH = BASE_DIR / "textbook_vectorstore"
 if not DEFAULT_TEXTBOOK_VECTORSTORE_PATH.exists():
@@ -825,26 +827,73 @@ def recommendation_condition_map():
 def recommendation_plan(data: dict, user: dict = Depends(current_user)):
     if user["role"] != "therapist":
         raise HTTPException(status_code=403, detail="Only Therapists Can Generate AI Exercise Recommendations")
-    condition = data.get("condition", "General Rehabilitation")
-    exercises = recommendation_condition_map().get(condition, ["Pain-Free Mobility", "Strengthening", "Functional Practice"])
+    condition = (data.get("condition") or "General Rehabilitation").strip()
+    patient_id = data.get("patient_id")
+    patient_context = ""
+    if patient_id:
+        patient_access(int(patient_id), user)
+        patient = one("SELECT * FROM patient_profiles WHERE id=:id", {"id": int(patient_id)}) or {}
+        assessments = rows("SELECT * FROM clinician_assessments WHERE patient_id=:id ORDER BY created_at DESC LIMIT 3", {"id": int(patient_id)})
+        plans = rows("SELECT * FROM exercise_plans WHERE patient_id=:id ORDER BY created_at DESC LIMIT 2", {"id": int(patient_id)})
+        progress = progress_for(int(patient_id))
+        outcomes = rows("SELECT * FROM outcome_measures WHERE patient_id=:id ORDER BY measured_at DESC LIMIT 5", {"id": int(patient_id)})
+        patient_context = "\n".join(
+            [
+                f"Patient profile: {json.dumps(patient, default=str)[:1200]}",
+                f"Recent therapist assessments: {json.dumps(assessments, default=str)[:2400]}",
+                f"Current/recent plans: {json.dumps(plans, default=str)[:1600]}",
+                f"Progress/session summary: {json.dumps(progress, default=str)[:1600]}",
+                f"Outcome measures: {json.dumps(outcomes, default=str)[:1000]}",
+            ]
+        )
+    mapped = recommendation_condition_map().get(condition, [])
+    library_matches = rows(
+        "SELECT name FROM exercises WHERE lower(COALESCE(condition,'')) LIKE lower(:condition) AND COALESCE(is_active,1)=1 ORDER BY name LIMIT 8",
+        {"condition": f"%{condition}%"},
+    )
+    exercises = mapped or [item["name"] for item in library_matches] or ["Pain-limited mobility drill", "Progressive strengthening", "Functional task practice"]
     source = "\n".join(
         [
             f"Condition: {condition}",
+            patient_context,
             f"Patient presentation: {data.get('assessment_summary') or data.get('presentation') or ''}",
             f"Goals: {data.get('goals') or ''}",
             f"Precautions: {data.get('precautions') or ''}",
             f"Pain/adherence context: {data.get('progress_context') or ''}",
+            f"Therapist question or prompt: {data.get('therapist_prompt') or data.get('question') or ''}",
         ]
     )
-    guidance = ai_clinical_suggestion(source, "therapist exercise recommendation support")
+    guidance = ai_clinical_suggestion(source, "senior consultant physiotherapist plan of care and exercise recommendation")
     return {
         "condition": condition,
         "recommendations": exercises,
+        "plan_of_care": guidance,
         "ai_exercise_guidance": guidance,
-        "evidence_justification": "Generated as therapist-only clinical decision support. Match exercises to assessment findings, precautions, and patient tolerance before assigning to the patient.",
-        "clinical_guideline_references": ["Therapeutic Exercise Principles", "Condition-Specific Rehabilitation Guidelines"],
+        "evidence_justification": "Generated as therapist-only clinical decision support using patient assessment/progress context when provided, local textbook RAG, and optional web evidence snippets. Therapist judgement and local standards remain required.",
+        "clinical_guideline_references": ["Therapeutic Exercise Principles", "Condition-Specific Rehabilitation Guidelines", "Current evidence snippets when available"],
         "therapist_review_required": True,
     }
+
+
+@app.post("/api/recommendations/chat")
+def recommendation_chat(data: dict, user: dict = Depends(current_user)):
+    if user["role"] != "therapist":
+        raise HTTPException(status_code=403, detail="Only Therapists Can Use AI Plan Chat")
+    patient_id = int(data["patient_id"])
+    patient_access(patient_id, user)
+    question = data.get("question") or ""
+    previous_answer = data.get("previous_answer") or ""
+    context = "\n".join(
+        [
+            f"Patient: {json.dumps(one('SELECT * FROM patient_profiles WHERE id=:id', {'id': patient_id}) or {}, default=str)[:1200]}",
+            f"Latest assessments: {json.dumps(rows('SELECT * FROM clinician_assessments WHERE patient_id=:id ORDER BY created_at DESC LIMIT 3', {'id': patient_id}), default=str)[:2400]}",
+            f"Progress: {json.dumps(progress_for(patient_id), default=str)[:1600]}",
+            f"Previous AI answer: {previous_answer[:1800]}",
+            f"Therapist follow-up question: {question}",
+        ]
+    )
+    answer = ai_clinical_suggestion(context, "consultant physiotherapist follow-up chat")
+    return {"answer": answer, "therapist_review_required": True}
 
 
 @app.post("/api/recommendations/adjust")
@@ -1467,51 +1516,73 @@ def scan_alerts(user: dict = Depends(current_user)):
         raise HTTPException(status_code=403, detail="Only Clinical Staff")
     patients = rows("SELECT * FROM patient_profiles WHERE therapist_id=:id OR :admin=1", {"id": user["id"], "admin": 1 if user["role"] == "admin" else 0})
     created = 0
+
+    def add_alert(patient_id: int, therapist_id: int | None, alert_type: str, severity: str, message: str, source: str):
+        existing = one(
+            "SELECT id FROM clinical_alerts WHERE patient_id=:p AND alert_type=:type AND COALESCE(is_resolved,0)=0 ORDER BY created_at DESC LIMIT 1",
+            {"p": patient_id, "type": alert_type},
+        )
+        if existing:
+            return 0
+        run(
+            "INSERT INTO clinical_alerts(patient_id,therapist_id,alert_type,severity,message,source,is_resolved,created_at) VALUES(:p,:t,:type,:severity,:m,:source,FALSE,:created)",
+            {"p": patient_id, "t": therapist_id, "type": alert_type, "severity": severity, "m": message, "source": source, "created": now()},
+        )
+        return 1
+
     for patient in patients:
         latest = one("SELECT * FROM session_logs WHERE patient_id=:id ORDER BY session_date DESC LIMIT 1", {"id": patient["id"]})
         if latest and latest.get("pain_after") is not None and latest["pain_after"] >= 7:
-            run(
-                "INSERT INTO clinical_alerts(patient_id,therapist_id,alert_type,severity,message,source,is_resolved,created_at) VALUES(:p,:t,'high_pain','High',:m,'session_log',FALSE,:created)",
-                {"p": patient["id"], "t": patient.get("therapist_id"), "m": f"High post-session pain score recorded: {latest['pain_after']}/10.", "created": now()},
+            created += add_alert(patient["id"], patient.get("therapist_id"), "high_pain", "High", f"Pain after session is {latest['pain_after']}/10, meeting the >= 7 clinical alert threshold.", "session_log")
+        if latest and latest.get("pain_after") is not None:
+            previous = one(
+                "SELECT AVG(pain_after) average_pain_after FROM session_logs WHERE patient_id=:id AND id!=:latest_id AND pain_after IS NOT NULL",
+                {"id": patient["id"], "latest_id": latest["id"]},
             )
-            created += 1
+            previous_average = previous.get("average_pain_after") if previous else None
+            if previous_average is not None and float(latest["pain_after"]) - float(previous_average) >= 3:
+                created += add_alert(
+                    patient["id"],
+                    patient.get("therapist_id"),
+                    "pain_increase_from_average",
+                    "High",
+                    f"Pain after session increased by {round(float(latest['pain_after']) - float(previous_average), 1)} points from previous average.",
+                    "session_log",
+                )
         if latest and latest.get("adherence") is not None and latest["adherence"] < 0.5:
-            run(
-                "INSERT INTO clinical_alerts(patient_id,therapist_id,alert_type,severity,message,source,is_resolved,created_at) VALUES(:p,:t,'poor_adherence','Medium',:m,'session_log',FALSE,:created)",
-                {"p": patient["id"], "t": patient.get("therapist_id"), "m": "Recent session adherence dropped below 50%.", "created": now()},
-            )
-            created += 1
+            created += add_alert(patient["id"], patient.get("therapist_id"), "poor_adherence", "Medium", "Recent session adherence dropped below 50%.", "session_log")
+        if not latest:
+            if parse_datetime(patient.get("created_at")) and parse_datetime(patient.get("created_at")) <= now() - timedelta(days=3):
+                created += add_alert(patient["id"], patient.get("therapist_id"), "no_session_logged_3_days", "Medium", "No rehabilitation session has been logged for at least 3 days.", "session_log")
+        elif parse_datetime(latest.get("session_date")) and parse_datetime(latest.get("session_date")) <= now() - timedelta(days=3):
+            created += add_alert(patient["id"], patient.get("therapist_id"), "no_session_logged_3_days", "Medium", "No rehabilitation session has been logged for at least 3 days.", "session_log")
         missed = rows(
             "SELECT * FROM appointments WHERE patient_id=:p AND status='Approved' AND scheduled_start < :now",
             {"p": patient["id"], "now": now()},
         )
         for appointment in missed:
-            run(
-                "INSERT INTO clinical_alerts(patient_id,therapist_id,alert_type,severity,message,source,is_resolved,created_at) VALUES(:p,:t,'missed_appointment','Medium',:m,'appointment',FALSE,:created)",
-                {"p": patient["id"], "t": patient.get("therapist_id"), "m": f"Appointment appears overdue: {appointment['scheduled_start']}.", "created": now()},
-            )
-            created += 1
+            created += add_alert(patient["id"], patient.get("therapist_id"), "missed_appointment", "Medium", f"Appointment appears overdue: {appointment['scheduled_start']}.", "appointment")
+    unassigned_patients = rows("SELECT * FROM patient_profiles WHERE therapist_id IS NULL AND is_onboarded=1 AND created_at <= :cutoff", {"cutoff": now() - timedelta(hours=48)})
+    for patient in unassigned_patients:
+        created += add_alert(patient["id"], None, "unassigned_after_48_hours", "High", "Patient remains unassigned more than 48 hours after onboarding.", "assignment")
     expired = rows(
         "SELECT * FROM therapist_assignments WHERE role='temporary' AND is_active=1 AND temporary_until IS NOT NULL AND temporary_until < :now",
         {"now": now()},
     )
     for assignment in expired:
-        run(
-            "INSERT INTO clinical_alerts(patient_id,therapist_id,alert_type,severity,message,source,is_resolved,created_at) VALUES(:p,:t,'expired_temporary_assignment','High',:m,'coverage',FALSE,:created)",
-            {"p": assignment["patient_id"], "t": assignment.get("primary_therapist_id") or assignment["therapist_id"], "m": "Temporary therapist coverage has expired.", "created": now()},
-        )
-        created += 1
+        created += add_alert(assignment["patient_id"], assignment.get("primary_therapist_id") or assignment["therapist_id"], "expired_temporary_assignment", "High", "Temporary therapist coverage has expired.", "coverage")
     return {"alerts_created": created}
 
 
 @app.get("/api/clinical-alerts/")
 def get_alerts(user: dict = Depends(current_user)):
+    if user["role"] not in ["therapist", "admin"]:
+        raise HTTPException(status_code=403, detail="Clinical Alerts Are For Therapists Only")
     if user["role"] == "therapist":
-        return rows("SELECT * FROM clinical_alerts WHERE therapist_id=:id ORDER BY created_at DESC", {"id": user["id"]})
+        return rows("SELECT * FROM clinical_alerts WHERE therapist_id=:id OR therapist_id IS NULL ORDER BY created_at DESC", {"id": user["id"]})
     if user["role"] == "admin":
         return rows("SELECT * FROM clinical_alerts ORDER BY created_at DESC")
-    patient = one("SELECT id FROM patient_profiles WHERE user_id=:id", {"id": user["id"]})
-    return rows("SELECT * FROM clinical_alerts WHERE patient_id=:id ORDER BY created_at DESC", {"id": patient["id"]}) if patient else []
+    return []
 
 
 @app.get("/api/clinical-records/outcome-measures/catalog")
@@ -1692,8 +1763,32 @@ def textbook_context(query: str, limit: int = 4) -> tuple[str, list[dict[str, st
     return "\n\n".join(chunks), references
 
 
+def web_evidence_context(query: str, limit: int = 3) -> tuple[str, list[dict[str, str]]]:
+    if not AI_WEB_SEARCH_ENABLED:
+        return "", []
+    try:
+        search_url = "https://duckduckgo.com/html/?" + urlencode({"q": f"{query} physiotherapy rehabilitation guideline evidence"})
+        req = urlrequest.Request(search_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urlrequest.urlopen(req, timeout=5) as response:
+            html = response.read().decode("utf-8", errors="ignore")
+        results = []
+        for match in re.finditer(r'class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', html, flags=re.IGNORECASE | re.DOTALL):
+            href = re.sub(r"&amp;", "&", match.group(1))
+            title = re.sub(r"<.*?>", "", match.group(2))
+            title = re.sub(r"\s+", " ", title).strip()
+            if href and title:
+                results.append({"source": title, "excerpt": href})
+            if len(results) >= limit:
+                break
+        context = "\n".join(f"- {item['source']}: {item['excerpt']}" for item in results)
+        return context, results
+    except Exception:
+        return "", []
+
+
 def ai_clinical_suggestion(source: str, request_type: str) -> str:
     context, references = textbook_context(source)
+    web_context, web_references = web_evidence_context(source)
     key = groq_api_key()
     if key:
         try:
@@ -1708,10 +1803,11 @@ def ai_clinical_suggestion(source: str, request_type: str) -> str:
                 max_retries=0,
             )
             prompt = f"""
-You are a physiotherapy clinical support assistant for a licensed therapist.
-Use the therapist note and retrieved textbook context to draft concise clinical support.
-Do not diagnose beyond the supplied information. Include red flags, precautions, graded exercise ideas, outcome measures to monitor, and when to escalate to in-person/emergency care.
-Make clear that therapist judgement is required.
+You are a senior consultant physiotherapist supporting a licensed treating therapist.
+Use the therapist note, patient assessment/progress context, retrieved textbook context, and latest web evidence snippets when available.
+Produce an international-standard plan of care, not only exercises.
+Include: clinical reasoning, red flags, precautions/contraindications, SMART goals, education, manual therapy considerations if appropriate, exercise prescription with dosage/progression/regression, functional training, outcome measures, review frequency, discharge criteria, and when to escalate to in-person/emergency care.
+Do not invent a diagnosis beyond the supplied information. Make clear that therapist judgement and local scope/legal requirements are required.
 
 REQUEST TYPE:
 {request_type}
@@ -1721,23 +1817,27 @@ THERAPIST NOTE:
 
 RETRIEVED TEXTBOOK CONTEXT:
 {context[:4500] if context else "No local textbook context was retrieved."}
+
+LATEST WEB EVIDENCE SNIPPETS:
+{web_context[:1800] if web_context else "No web evidence snippets were available."}
 """
             return llm.invoke(prompt).content
         except Exception as exc:
             return (
                 "AI Clinical Support could not call Groq successfully. "
                 f"{exc.__class__.__name__}: {str(exc)[:240]}\n\n"
-                + fallback_ai_suggestion(source, context, references)
+                + fallback_ai_suggestion(source, context, references + web_references)
             )
-    return fallback_ai_suggestion(source, context, references)
+    return fallback_ai_suggestion(source, context, references + web_references)
 
 
 def fallback_ai_suggestion(source: str, context: str, references: list[dict[str, str]]) -> str:
     evidence_note = "Local textbook RAG retrieved supporting context." if context else "No local textbook context was available."
     excerpts = "\n".join(f"- {item['source']}: {item['excerpt'][:220]}" for item in references[:3])
     return (
-        "AI Clinical Support: Review the patient presentation, screen for red flags, keep exercise dosage graded and pain-limited, "
-        "and monitor function, pain response, adherence, and adverse symptoms. Therapist approval is required before use.\n\n"
+        "Consultant Physiotherapy Support: Review the full patient presentation, screen for red flags, confirm precautions, "
+        "set SMART functional goals, prescribe graded pain-limited exercise, educate on load management, monitor outcome measures, "
+        "and adjust dosage based on pain, adherence, function, and adverse symptoms. Therapist approval is required before use.\n\n"
         f"{evidence_note}\n{excerpts}\n\nInput Summary: {source[:500]}"
     )
 

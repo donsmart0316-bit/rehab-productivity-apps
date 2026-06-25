@@ -296,6 +296,7 @@ class Workflow:
         assert "alerts_created" in scanned
         alerts = self.request("GET", "/api/clinical-alerts/", role="therapist")
         assert isinstance(alerts, list)
+        self.request("GET", "/api/clinical-alerts/", role="patient", expect=403)
         pose = self.request("POST", "/api/pose-feedback/analyze", role="patient", json={"exercise": "Squat"})
         assert pose["feedback"]
         languages = self.request("GET", "/api/translations/languages")
