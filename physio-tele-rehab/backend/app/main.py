@@ -3,6 +3,7 @@ from email.message import EmailMessage
 import ast
 from functools import lru_cache
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -1936,6 +1937,156 @@ def pose_feedback(data: dict, user: dict = Depends(current_user)):
     }
 
 
+def joint_angle(a: tuple[float, float], b: tuple[float, float], c: tuple[float, float]) -> float:
+    ab = (a[0] - b[0], a[1] - b[1])
+    cb = (c[0] - b[0], c[1] - b[1])
+    dot = ab[0] * cb[0] + ab[1] * cb[1]
+    mag_ab = math.hypot(*ab)
+    mag_cb = math.hypot(*cb)
+    if not mag_ab or not mag_cb:
+        return 0.0
+    cosine = max(-1.0, min(1.0, dot / (mag_ab * mag_cb)))
+    return round(math.degrees(math.acos(cosine)), 1)
+
+
+def analyze_pose_landmarks(exercise: str, image) -> dict[str, Any] | None:
+    try:
+        import cv2
+        import mediapipe as mp
+    except Exception:
+        return None
+
+    height, width = image.shape[:2]
+    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    pose = mp.solutions.pose.Pose(static_image_mode=True, model_complexity=2, enable_segmentation=False, min_detection_confidence=0.55)
+    with pose:
+        result = pose.process(rgb)
+    if not result.pose_landmarks:
+        return {
+            "exercise": exercise,
+            "score": 0,
+            "confidence": "Low",
+            "person_detected": False,
+            "engine": "mediapipe",
+            "metrics": {},
+            "feedback": [
+                "No human pose landmarks were detected.",
+                "Use a clear full-body frame with good lighting and the camera at hip or chest height.",
+                "The system will not grade unrelated images as exercise performance.",
+            ],
+        }
+
+    lm = result.pose_landmarks.landmark
+    names = mp.solutions.pose.PoseLandmark
+
+    def point(name):
+        landmark = lm[name.value]
+        return (float(landmark.x), float(landmark.y), float(getattr(landmark, "visibility", 1.0)))
+
+    required = [
+        names.LEFT_SHOULDER,
+        names.RIGHT_SHOULDER,
+        names.LEFT_HIP,
+        names.RIGHT_HIP,
+        names.LEFT_KNEE,
+        names.RIGHT_KNEE,
+        names.LEFT_ANKLE,
+        names.RIGHT_ANKLE,
+    ]
+    visible = {name.name: point(name)[2] for name in required}
+    average_visibility = round(sum(visible.values()) / len(visible), 2)
+    low_visibility = [name for name, value in visible.items() if value < 0.45]
+
+    left_shoulder = point(names.LEFT_SHOULDER)
+    right_shoulder = point(names.RIGHT_SHOULDER)
+    left_hip = point(names.LEFT_HIP)
+    right_hip = point(names.RIGHT_HIP)
+    left_knee = point(names.LEFT_KNEE)
+    right_knee = point(names.RIGHT_KNEE)
+    left_ankle = point(names.LEFT_ANKLE)
+    right_ankle = point(names.RIGHT_ANKLE)
+
+    left_knee_angle = joint_angle(left_hip[:2], left_knee[:2], left_ankle[:2])
+    right_knee_angle = joint_angle(right_hip[:2], right_knee[:2], right_ankle[:2])
+    left_hip_angle = joint_angle(left_shoulder[:2], left_hip[:2], left_knee[:2])
+    right_hip_angle = joint_angle(right_shoulder[:2], right_hip[:2], right_knee[:2])
+    shoulder_tilt = round(abs(left_shoulder[1] - right_shoulder[1]) * 100, 1)
+    hip_tilt = round(abs(left_hip[1] - right_hip[1]) * 100, 1)
+    knee_symmetry = round(abs(left_knee_angle - right_knee_angle), 1)
+    ankle_width = abs(left_ankle[0] - right_ankle[0])
+    shoulder_width = abs(left_shoulder[0] - right_shoulder[0])
+    stance_ratio = round(ankle_width / max(shoulder_width, 0.01), 2)
+    center_x = (left_hip[0] + right_hip[0]) / 2
+    centered = 0.15 < center_x < 0.85
+
+    score = 100
+    if average_visibility < 0.7:
+        score -= 20
+    if low_visibility:
+        score -= min(25, len(low_visibility) * 4)
+    if not centered:
+        score -= 10
+    if shoulder_tilt > 5:
+        score -= 8
+    if hip_tilt > 5:
+        score -= 8
+    if knee_symmetry > 18:
+        score -= 12
+    if stance_ratio < 0.55 or stance_ratio > 2.2:
+        score -= 8
+    score = max(0, min(100, int(score)))
+
+    exercise_lower = exercise.lower()
+    feedback = [
+        f"Pose landmarks detected with average visibility {average_visibility}.",
+        "Keep movement slow, controlled, and pain-free. This is screening feedback, not a therapist diagnosis.",
+    ]
+    if low_visibility:
+        feedback.append("Improve visibility for: " + ", ".join(name.replace("_", " ").title() for name in low_visibility[:4]) + ".")
+    if not centered:
+        feedback.append("Stand closer to the center of the frame so both sides of the body can be compared.")
+    if shoulder_tilt > 5:
+        feedback.append("Shoulder line appears tilted. Check posture and camera angle.")
+    if hip_tilt > 5:
+        feedback.append("Pelvis/hip line appears tilted. Review weight shift and stance symmetry.")
+    if knee_symmetry > 18:
+        feedback.append("Left and right knee angles differ noticeably. Review symmetry and compensate only if clinically intended.")
+    if "squat" in exercise_lower or "sit" in exercise_lower:
+        feedback.append(f"Knee flexion estimate: left {left_knee_angle}°, right {right_knee_angle}°. Compare this with the target depth prescribed by the therapist.")
+        if stance_ratio < 0.7:
+            feedback.append("Stance appears narrow for a squat/sit-to-stand. Confirm foot position with therapist instructions.")
+    elif "lunge" in exercise_lower:
+        feedback.append("For lunges, confirm front knee tracks over the foot and the trunk stays controlled.")
+    elif "shoulder" in exercise_lower or "wall slide" in exercise_lower:
+        feedback.append("For shoulder exercises, keep ribs controlled and avoid shrugging if symptoms increase.")
+    if score >= 85:
+        feedback.append("Frame quality and visible alignment are good enough for therapist review.")
+    elif score < 60:
+        feedback.append("Do not rely on this score alone. Retake with better full-body visibility or ask your therapist to review directly.")
+
+    return {
+        "exercise": exercise,
+        "score": score,
+        "confidence": "High" if average_visibility >= 0.75 and not low_visibility else "Moderate",
+        "person_detected": True,
+        "engine": "mediapipe",
+        "metrics": {
+            "average_visibility": average_visibility,
+            "left_knee_angle": left_knee_angle,
+            "right_knee_angle": right_knee_angle,
+            "left_hip_angle": left_hip_angle,
+            "right_hip_angle": right_hip_angle,
+            "shoulder_tilt_percent": shoulder_tilt,
+            "hip_tilt_percent": hip_tilt,
+            "knee_symmetry_difference": knee_symmetry,
+            "stance_width_to_shoulder_width": stance_ratio,
+            "image_width": width,
+            "image_height": height,
+        },
+        "feedback": feedback,
+    }
+
+
 @app.post("/api/pose-feedback/analyze-image")
 async def pose_feedback_image(exercise: str = Form("Exercise"), file: UploadFile = File(...), user: dict = Depends(current_user)):
     content = await file.read()
@@ -1946,6 +2097,9 @@ async def pose_feedback_image(exercise: str = Form("Exercise"), file: UploadFile
         image = cv2.imdecode(np.frombuffer(content, np.uint8), cv2.IMREAD_COLOR)
         if image is None:
             raise ValueError("Invalid image")
+        landmark_result = analyze_pose_landmarks(exercise, image)
+        if landmark_result is not None:
+            return landmark_result
         height, width = image.shape[:2]
         hog = cv2.HOGDescriptor()
         hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
@@ -1970,15 +2124,16 @@ async def pose_feedback_image(exercise: str = Form("Exercise"), file: UploadFile
         score = 55 + int(min(weight, 2.0) * 15) + (10 if body_ratio > 0.18 else 0) + (10 if centered else 0)
         score = max(40, min(score, 95))
         feedback = [
-            f"Person Detected For {exercise}. Form Score Is {score}/100.",
+            f"Person detected for {exercise}. Limited fallback form score is {score}/100.",
             "Keep the full body visible from head to feet so joint position can be checked.",
             "Move slowly and keep the exercise pain-free.",
+            "Install MediaPipe in the backend environment for landmark-based scoring with joint angles and symmetry checks.",
         ]
         if body_ratio < 0.18:
             feedback.append("Move closer to the camera or adjust the camera so your body fills more of the frame.")
         if not centered:
             feedback.append("Stand nearer the center of the camera frame for better tracking.")
-        return {"exercise": exercise, "score": score, "confidence": "Moderate", "person_detected": True, "feedback": feedback}
+        return {"exercise": exercise, "score": score, "confidence": "Low", "person_detected": True, "engine": "opencv_hog_fallback", "metrics": {"body_ratio": round(body_ratio, 3), "centered": centered}, "feedback": feedback}
     except Exception as exc:
         return {
             "exercise": exercise,

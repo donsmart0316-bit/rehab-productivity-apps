@@ -244,7 +244,7 @@ def api(method, path, **kwargs):
 def action_success(message):
     st.success(message)
     try:
-        st.toast(message, icon="✓")
+        st.toast(message, icon="OK")
     except Exception:
         pass
 
@@ -1284,6 +1284,10 @@ def pose_feedback():
         files = {"file": (camera_frame.name or "pose-frame.jpg", camera_frame.getvalue(), camera_frame.type or "image/jpeg")}
         result = api("POST", "/pose-feedback/analyze-image", data={"exercise": exercise}, files=files) or {}
         st.metric("Form Score", result.get("score", 0))
+        st.caption(f"Engine: {result.get('engine', 'unknown')} | Confidence: {result.get('confidence', 'Unknown')}")
+        metrics = result.get("metrics") or {}
+        if metrics:
+            st.dataframe(pd.DataFrame([metrics]), use_container_width=True)
         for item in result.get("feedback", []):
             st.write(item)
     elif camera_frame is None:
