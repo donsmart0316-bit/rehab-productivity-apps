@@ -200,6 +200,18 @@ def parse_metadata(value: Any) -> dict[str, Any]:
         return {}
 
 
+def json_db(value: Any, default: Any):
+    if value is None:
+        value = default
+    if isinstance(value, str):
+        try:
+            json.loads(value)
+            return value
+        except Exception:
+            pass
+    return json.dumps(value)
+
+
 def file_response_from_metadata(metadata: Any):
     parsed = parse_metadata(metadata)
     path_value = parsed.get("path")
@@ -846,11 +858,11 @@ def onboarding(data: dict, user: dict = Depends(current_user)):
     if patient:
         sets = ", ".join([f"{key}=:{key}" for key in fields])
         fields.update({"id": patient["id"], "status": "waiting_for_assignment"})
-        run(f"UPDATE patient_profiles SET {sets}, is_onboarded=1, patient_status=:status WHERE id=:id", fields)
+        run(f"UPDATE patient_profiles SET {sets}, is_onboarded=TRUE, patient_status=:status WHERE id=:id", fields)
         patient_id = patient["id"]
     else:
         cols = ",".join(fields.keys()) + ",user_id,is_onboarded,patient_status,created_at"
-        vals = ",".join([f":{key}" for key in fields]) + ",:user_id,1,:status,:created"
+        vals = ",".join([f":{key}" for key in fields]) + ",:user_id,TRUE,:status,:created"
         fields.update({"user_id": user["id"], "status": "waiting_for_assignment", "created": now()})
         result = run(f"INSERT INTO patient_profiles({cols}) VALUES({vals})", fields)
         patient_id = result.lastrowid
@@ -949,8 +961,8 @@ def create_exercise(data: dict, user: dict = Depends(current_user)):
         """,
         {
             **data,
-            "target_muscles": str(data.get("target_muscles", [])),
-            "equipment_needed": str(data.get("equipment_needed", [])),
+            "target_muscles": json_db(data.get("target_muscles"), []),
+            "equipment_needed": json_db(data.get("equipment_needed"), []),
             "body_region": data.get("body_region"),
             "difficulty": data.get("difficulty"),
             "reps": data.get("reps"),
@@ -1010,11 +1022,11 @@ def create_plan(data: dict, user: dict = Depends(current_user)):
             "frequency_per_week": data.get("frequency_per_week"),
             "duration_weeks": data.get("duration_weeks"),
             "created_at": now(),
-            "patient_specific_modifications": str(data.get("patient_specific_modifications", {})),
-            "goals": str(data.get("goals", [])),
-            "contraindications": str(data.get("contraindications", [])),
-            "exercise_prescriptions": str(data.get("exercise_prescriptions", [])),
-            "daily_schedule": str(data.get("daily_schedule", [])),
+            "patient_specific_modifications": json_db(data.get("patient_specific_modifications"), {}),
+            "goals": json_db(data.get("goals"), []),
+            "contraindications": json_db(data.get("contraindications"), []),
+            "exercise_prescriptions": json_db(data.get("exercise_prescriptions"), []),
+            "daily_schedule": json_db(data.get("daily_schedule"), []),
         },
     )
     audit(user, "create", "exercise_plan", result.lastrowid, int(data["patient_id"]), "Exercise Plan Created")
