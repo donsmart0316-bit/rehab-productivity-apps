@@ -21,6 +21,7 @@ from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.engine import make_url
 
 
@@ -75,7 +76,7 @@ DEV_SHOW_RESET_CODE = os.getenv("DEV_SHOW_RESET_CODE", "false").lower() == "true
 database_url_info = make_url(DATABASE_URL)
 IS_SQLITE = database_url_info.get_backend_name() == "sqlite"
 IS_POSTGRES = database_url_info.get_backend_name().startswith("postgresql")
-engine_kwargs: dict[str, Any] = {"future": True, "pool_pre_ping": True}
+engine_kwargs: dict[str, Any] = {"future": True, "pool_pre_ping": True, "pool_recycle": 60}
 if IS_SQLITE:
     engine_kwargs["connect_args"] = {"check_same_thread": False}
 engine = create_engine(DATABASE_URL, **engine_kwargs)
@@ -162,19 +163,36 @@ def normalize_sql(sql: str) -> str:
 
 
 def run(sql: str, params: dict[str, Any] | None = None):
-    with engine.begin() as conn:
-        result = conn.execute(text(normalize_sql(sql)), params or {})
-        inserted_id = None
-        if result.returns_rows:
-            row = result.fetchone()
-            if row is not None and "id" in row._mapping:
-                inserted_id = row._mapping["id"]
-        return DBResult(result, inserted_id)
+    normalized = normalize_sql(sql)
+    attempts = 2 if not normalized.lstrip().upper().startswith("INSERT ") else 1
+    for attempt in range(attempts):
+        try:
+            with engine.begin() as conn:
+                result = conn.execute(text(normalized), params or {})
+                inserted_id = None
+                if result.returns_rows:
+                    row = result.fetchone()
+                    if row is not None and "id" in row._mapping:
+                        inserted_id = row._mapping["id"]
+                return DBResult(result, inserted_id)
+        except OperationalError:
+            engine.dispose()
+            if attempt + 1 >= attempts:
+                raise
+    raise RuntimeError("Database write failed")
 
 
 def rows(sql: str, params: dict[str, Any] | None = None):
-    with engine.begin() as conn:
-        return [dict(row._mapping) for row in conn.execute(text(normalize_sql(sql)), params or {}).fetchall()]
+    normalized = normalize_sql(sql)
+    for attempt in range(2):
+        try:
+            with engine.begin() as conn:
+                return [dict(row._mapping) for row in conn.execute(text(normalized), params or {}).fetchall()]
+        except OperationalError:
+            engine.dispose()
+            if attempt == 1:
+                raise
+    return []
 
 
 def one(sql: str, params: dict[str, Any] | None = None):
@@ -504,10 +522,22 @@ def translate_text(text_value: str, source_language: str, target_language: str) 
     if not translated:
         translated = text_value
     if provider != "unavailable":
-        run(
-            "INSERT OR REPLACE INTO translation_cache(source_language,target_language,source_text,translated_text,provider,created_at) VALUES(:source,:target,:text,:translated,:provider,:created)",
-            {"source": source_language, "target": target_language, "text": text_value, "translated": translated, "provider": provider, "created": now()},
-        )
+        cache_params = {"source": source_language, "target": target_language, "text": text_value, "translated": translated, "provider": provider, "created": now()}
+        if IS_POSTGRES:
+            run(
+                """
+                INSERT INTO translation_cache(source_language,target_language,source_text,translated_text,provider,created_at)
+                VALUES(:source,:target,:text,:translated,:provider,:created)
+                ON CONFLICT(source_language,target_language,source_text)
+                DO UPDATE SET translated_text=EXCLUDED.translated_text,provider=EXCLUDED.provider,created_at=EXCLUDED.created_at
+                """,
+                cache_params,
+            )
+        else:
+            run(
+                "INSERT OR REPLACE INTO translation_cache(source_language,target_language,source_text,translated_text,provider,created_at) VALUES(:source,:target,:text,:translated,:provider,:created)",
+                cache_params,
+            )
     return translated, provider
 
 
@@ -1302,7 +1332,7 @@ async def upload_message(patient_id: int = Form(...), message_type: str = Form("
     meta = {"filename": file.filename, "path": str(path), "content_type": file.content_type}
     result = run(
         "INSERT INTO communication_messages(patient_id,sender_id,recipient_id,message_type,content,attachment_metadata,created_at) VALUES(:p,:s,:r,:type,:content,:meta,:created)",
-        {"p": patient_id, "s": user["id"], "r": recipient, "type": message_type, "content": content, "meta": str(meta), "created": now()},
+        {"p": patient_id, "s": user["id"], "r": recipient, "type": message_type, "content": content, "meta": json_db(meta, {}), "created": now()},
     )
     return one("SELECT * FROM communication_messages WHERE id=:id", {"id": result.lastrowid})
 
@@ -1336,7 +1366,7 @@ def create_call_message(data: dict, user: dict = Depends(current_user)):
     content = f"{call_type.title()} Call Link: {url}"
     result = run(
         "INSERT INTO communication_messages(patient_id,sender_id,recipient_id,message_type,content,attachment_metadata,created_at) VALUES(:p,:s,:r,:type,:content,:meta,:created)",
-        {"p": patient["id"], "s": user["id"], "r": recipient, "type": call_type, "content": content, "meta": str({"call_url": url, "call_type": call_type}), "created": now()},
+        {"p": patient["id"], "s": user["id"], "r": recipient, "type": call_type, "content": content, "meta": json_db({"call_url": url, "call_type": call_type}, {}), "created": now()},
     )
     return one("SELECT * FROM communication_messages WHERE id=:id", {"id": result.lastrowid})
 
@@ -1509,7 +1539,7 @@ async def upload_medical_document(
     metadata = {"filename": file.filename, "path": str(path), "content_type": file.content_type, "size": path.stat().st_size}
     result = run(
         "INSERT INTO medical_documents(patient_id,uploaded_by_user_id,document_type,title,description,file_metadata,created_at) VALUES(:p,:u,:type,:title,:description,:meta,:created)",
-        {"p": patient_id, "u": user["id"], "type": document_type, "title": title, "description": description, "meta": str(metadata), "created": now()},
+        {"p": patient_id, "u": user["id"], "type": document_type, "title": title, "description": description, "meta": json_db(metadata, {}), "created": now()},
     )
     audit(user, "upload", "medical_document", result.lastrowid, patient_id, "Medical Document Uploaded")
     return one("SELECT * FROM medical_documents WHERE id=:id", {"id": result.lastrowid})
@@ -1674,8 +1704,8 @@ def ai_clinical_suggestion(source: str, request_type: str) -> str:
                 api_key=key,
                 temperature=0.2,
                 max_tokens=750,
-                timeout=30,
-                max_retries=1,
+                timeout=8,
+                max_retries=0,
             )
             prompt = f"""
 You are a physiotherapy clinical support assistant for a licensed therapist.
@@ -1911,9 +1941,10 @@ def recovery_stats(user: dict = Depends(current_user)):
 def deidentified(user: dict = Depends(current_user)):
     if user["role"] != "admin" and user.get("clinical_role") != "Clinic Administrator":
         raise HTTPException(status_code=403, detail="Clinic Administrator Access Required")
+    patient_id_expr = "('PT-' || LPAD(p.id::text, 6, '0'))" if IS_POSTGRES else "printf('PT-%06d', p.id)"
     return rows(
-        """
-        SELECT printf('PT-%06d', p.id) research_patient_id,p.age,p.gender,p.country,p.condition,p.severity,p.patient_status,
+        f"""
+        SELECT {patient_id_expr} research_patient_id,p.age,p.gender,p.country,p.condition,p.severity,p.patient_status,
         COUNT(s.id) session_count, AVG(s.adherence) average_adherence, AVG(s.pain_change) average_pain_change
         FROM patient_profiles p LEFT JOIN session_logs s ON s.patient_id=p.id GROUP BY p.id
         """
