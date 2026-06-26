@@ -39,7 +39,7 @@ with col1:
 with col2:
     risk_card(latest_risk)
 with col3:
-    metric_card("Average Recovery", f"{avg_recovery:.0f}/100", recovery_label(avg_recovery), "#00b894")
+    metric_card("Average Recovery", f"{avg_recovery:.0f}/100", recovery_label(avg_recovery), "#2bbf7f")
 
 best_day = history.loc[history["productivity_score"].idxmax()]
 low_recovery = history.loc[history["recovery_score"].idxmin()]

@@ -34,7 +34,7 @@ else:
     with col2:
         risk_card(str(latest["burnout_risk"]))
     with col3:
-        metric_card("Recovery", f"{latest['recovery_score']:.0f}/100", recovery_label(float(latest["recovery_score"])), "#00b894")
+        metric_card("Recovery", f"{latest['recovery_score']:.0f}/100", recovery_label(float(latest["recovery_score"])), "#2bbf7f")
 
 bootstrap.section(
     "Workflow",

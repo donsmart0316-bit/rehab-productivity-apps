@@ -5,10 +5,10 @@ import html
 import streamlit as st
 
 
-RISK_COLORS = {"Low": "#4f8f6d", "Medium": "#c7923e", "High": "#b96a6a"}
+RISK_COLORS = {"Low": "#2bbf7f", "Medium": "#ffb020", "High": "#ff4d6d"}
 
 
-def metric_card(title: str, value: str | float | int, caption: str = "", color: str = "#517ea6") -> None:
+def metric_card(title: str, value: str | float | int, caption: str = "", color: str = "#3157ff") -> None:
     st.markdown(
         f"""
         <div class="coach-card">
@@ -22,7 +22,7 @@ def metric_card(title: str, value: str | float | int, caption: str = "", color: 
 
 
 def risk_card(risk: str) -> None:
-    metric_card("Burnout Risk", risk, "Current risk category", RISK_COLORS.get(risk, "#c7923e"))
+    metric_card("Burnout Risk", risk, "Current risk category", RISK_COLORS.get(risk, "#ffb020"))
 
 
 def timeline(schedule: list[dict]) -> None:

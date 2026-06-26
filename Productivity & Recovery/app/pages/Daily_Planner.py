@@ -62,9 +62,9 @@ if "latest_prediction" in st.session_state:
     with col2:
         risk_card(prediction["burnout_risk"])
     with col3:
-        metric_card("Recovery", f"{prediction['recovery_score']:.0f}/100", recovery_label(prediction["recovery_score"]), "#00b894")
+        metric_card("Recovery", f"{prediction['recovery_score']:.0f}/100", recovery_label(prediction["recovery_score"]), "#2bbf7f")
     with col4:
-        metric_card("Sleep Debt", f"{prediction['sleep_debt']:.1f}h", "Estimated rolling deficit", "#c7923e")
+        metric_card("Sleep Debt", f"{prediction['sleep_debt']:.1f}h", "Estimated rolling deficit", "#ffb020")
     conf1, conf2, conf3 = st.columns(3)
     with conf1:
         metric_card("Productivity Confidence", prediction["productivity_confidence_label"], f"{prediction['productivity_confidence']:.0f}/100")
