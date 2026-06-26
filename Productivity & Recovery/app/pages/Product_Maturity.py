@@ -19,8 +19,13 @@ profile = sidebar_profile()
 user_id = profile["name"].lower().replace(" ", "_")
 history = load_daily_history(user_id)
 
-st.title("Product Maturity Dashboard")
-st.caption("Longitudinal progress, confidence, adherence, and anonymized insights.")
+bootstrap.hero(
+    "Measure progress like a",
+    "professional product.",
+    "Longitudinal progress, confidence, adherence, consistency, and anonymized insights for a maturing coaching system.",
+    eyebrow="Product Maturity",
+    pills=["Confidence", "Adherence", "Longitudinal trends", "Insights"],
+)
 
 if history.empty:
     st.info("Generate daily plans to populate maturity analytics.")
@@ -40,26 +45,26 @@ with col3:
 with col4:
     metric_card("Records", consistency["checkin_days"], "Daily check-ins")
 
-st.subheader("Longitudinal Trends")
+bootstrap.section("Longitudinal Trends", "Performance and recovery over time", "Watch whether the coaching loop improves useful output without sacrificing recovery.")
 col_a, col_b = st.columns(2)
 with col_a:
     st.plotly_chart(trend_line(history, "productivity_score", "Productivity Over Time", "Productivity"), use_container_width=True)
 with col_b:
     st.plotly_chart(trend_line(history, "recovery_score", "Recovery Over Time", "Recovery"), use_container_width=True)
 
-st.subheader("Summaries")
+bootstrap.section("Summaries", "Period-level maturity view", "Weekly, monthly, and quarterly aggregations reveal whether the product is creating durable behavior change.")
 tabs = st.tabs(["Weekly", "Monthly", "Quarterly"])
 for tab, period in zip(tabs, ["W", "M", "Q"]):
     with tab:
         summary = period_summary(history, period)
         st.dataframe(summary, use_container_width=True)
 
-st.subheader("Anonymized Insights")
+bootstrap.section("Anonymized Insights", "Patterns from usage", "Use repeated signals to improve the coaching model and product experience.")
 for insight in aggregate_insights(history):
     st.write(f"- {insight}")
 
 if "productivity_confidence" in latest:
-    st.subheader("Latest Confidence")
+    bootstrap.section("Latest Confidence", "Model confidence snapshot", "Review confidence values behind productivity, burnout, and schedule recommendations.")
     st.write(
         f"Productivity confidence: **{latest.get('productivity_confidence', 'N/A')}** | "
         f"Burnout confidence: **{latest.get('burnout_confidence', 'N/A')}** | "

@@ -19,8 +19,13 @@ from app.services.recommendation_service import generate_plan
 
 
 profile = sidebar_profile()
-st.title("Daily Planner")
-st.caption("Generate a schedule from today's physiology, workload, and task demands.")
+bootstrap.hero(
+    "Plan today with",
+    "recovery-aware intelligence.",
+    "Generate a schedule from today's physiology, workload, task demands, chronotype, and burnout risk.",
+    eyebrow="Daily Planner",
+    pills=["Sleep debt", "Plan modes", "Focus blocks", "Recovery breaks"],
+)
 
 checkin, tasks = daily_checkin_form(profile)
 
@@ -46,14 +51,18 @@ if "latest_prediction" in st.session_state:
     coaching = st.session_state["latest_coaching"]
     profile = st.session_state.get("latest_profile", profile)
 
-    st.subheader("Prediction Dashboard")
+    bootstrap.section(
+        "Prediction Dashboard",
+        "Your performance readiness",
+        "Live predictions combine the check-in, profile, model confidence, and recommendation guardrails.",
+    )
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         metric_card("Productivity", f"{prediction['productivity_score']:.0f}/100", "Expected usable output")
     with col2:
         risk_card(prediction["burnout_risk"])
     with col3:
-        metric_card("Recovery", f"{prediction['recovery_score']:.0f}/100", recovery_label(prediction["recovery_score"]), "#4f8f6d")
+        metric_card("Recovery", f"{prediction['recovery_score']:.0f}/100", recovery_label(prediction["recovery_score"]), "#00b894")
     with col4:
         metric_card("Sleep Debt", f"{prediction['sleep_debt']:.1f}h", "Estimated rolling deficit", "#c7923e")
     conf1, conf2, conf3 = st.columns(3)

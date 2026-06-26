@@ -17,7 +17,13 @@ profile = sidebar_profile()
 user_id = profile["name"].lower().replace(" ", "_")
 history = load_daily_history(user_id)
 
-st.title("Analytics")
+bootstrap.hero(
+    "Understand the patterns behind",
+    "your energy.",
+    "Track productivity, recovery, sleep debt, adherence, burnout risk, and the signals that shape better planning decisions.",
+    eyebrow="Analytics",
+    pills=["Trend intelligence", "Consistency", "Adherence", "Risk signals"],
+)
 if history.empty:
     st.info("No history yet. Generate daily plans to unlock trend analytics.")
     st.stop()
@@ -44,15 +50,15 @@ with col3:
 with col4:
     st.plotly_chart(burnout_gauge(str(history.iloc[-1]["burnout_risk"])), use_container_width=True)
 
-st.subheader("Recent Data")
+bootstrap.section("Recent Data", "Your last records", "Review the raw daily predictions and plan outcomes powering the analytics.")
 st.dataframe(history.tail(14), use_container_width=True)
 
-st.subheader("Period Summaries")
+bootstrap.section("Period Summaries", "Weekly, monthly, and quarterly views", "Zoom out to see whether recovery and output are improving over time.")
 summary_tabs = st.tabs(["Weekly", "Monthly", "Quarterly"])
 for tab, period in zip(summary_tabs, ["W", "M", "Q"]):
     with tab:
         st.dataframe(period_summary(history, period), use_container_width=True)
 
-st.subheader("Personal Insights")
+bootstrap.section("Personal Insights", "Actionable behavior patterns", "These insights summarize repeated signals in your history and feedback loop.")
 for insight in aggregate_insights(history):
     st.write(f"- {insight}")

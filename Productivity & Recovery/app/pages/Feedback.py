@@ -14,7 +14,13 @@ from app.services.feedback_service import load_feedback, save_feedback
 profile = sidebar_profile()
 user_id = profile["name"].lower().replace(" ", "_")
 
-st.title("Feedback")
+bootstrap.hero(
+    "Close the loop with",
+    "real feedback.",
+    "Tell the coach what worked, what felt heavy, and how the plan affected productivity, fatigue, and satisfaction.",
+    eyebrow="Feedback",
+    pills=["Adherence", "Fatigue", "Satisfaction", "Learning loop"],
+)
 latest_plan = st.session_state.get("latest_plan")
 if latest_plan is None:
     st.info("Generate a daily plan first, then come back to record feedback.")
@@ -30,7 +36,7 @@ else:
         save_feedback(user_id, latest_plan["date"], latest_plan, followed, productivity, fatigue, satisfaction, comments)
         st.success("Feedback saved.")
 
-st.subheader("Feedback Log")
+bootstrap.section("Feedback Log", "Recent learning signals", "Your feedback helps future planning become more personalized and realistic.")
 feedback = load_feedback()
 if feedback.empty:
     st.caption("No feedback recorded yet.")
