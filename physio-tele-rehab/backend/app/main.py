@@ -1764,6 +1764,31 @@ def textbook_context(query: str, limit: int = 4) -> tuple[str, list[dict[str, st
     return "\n\n".join(chunks), references
 
 
+def textbook_vectorstore_file_status() -> dict[str, Any]:
+    path = TEXTBOOK_VECTORSTORE_PATH
+    files = list(path.glob("*")) if path.exists() else []
+    required = ["index.faiss", "index.pkl"]
+    missing = [name for name in required if not (path / name).exists()]
+    return {
+        "source_dir": str(path),
+        "exists": path.exists(),
+        "documents_found": len(files),
+        "required_files_present": not missing,
+        "missing_files": missing,
+    }
+
+
+def rag_dependency_status() -> dict[str, bool]:
+    status = {}
+    for module in ["faiss", "langchain_community", "langchain_huggingface", "sentence_transformers"]:
+        try:
+            __import__(module)
+            status[module] = True
+        except Exception:
+            status[module] = False
+    return status
+
+
 def web_evidence_context(query: str, limit: int = 3) -> tuple[str, list[dict[str, str]]]:
     if not AI_WEB_SEARCH_ENABLED:
         return "", []
@@ -1903,14 +1928,16 @@ def get_discharge(patient_id: int, user: dict = Depends(current_user)):
 
 @app.get("/api/clinical-records/textbook-rag/status")
 def textbook_rag_status(user: dict = Depends(current_user)):
-    vectorstore = textbook_vectorstore()
-    files = list(TEXTBOOK_VECTORSTORE_PATH.glob("*")) if TEXTBOOK_VECTORSTORE_PATH.exists() else []
+    file_status = textbook_vectorstore_file_status()
+    dependencies = rag_dependency_status()
     return {
-        "source_dir": str(TEXTBOOK_VECTORSTORE_PATH),
-        "available": vectorstore is not None,
-        "documents_found": len(files),
+        **file_status,
+        "available": file_status["required_files_present"] and all(dependencies.values()),
+        "dependencies": dependencies,
         "groq_key_loaded": bool(groq_api_key()),
-        "lazy_indexing": False,
+        "web_search_enabled": AI_WEB_SEARCH_ENABLED,
+        "lazy_loading": True,
+        "note": "Status is lightweight. The FAISS index is loaded only when the therapist searches evidence or asks the AI.",
     }
 
 
