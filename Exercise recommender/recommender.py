@@ -12,6 +12,10 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 from fpdf import FPDF
+
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_community.vectorstores import FAISS
 from langchain_groq import ChatGroq
@@ -24,61 +28,409 @@ st.set_page_config(page_title="Personalized Rehab Exercise Recommender", layout=
 st.markdown(
     """
 <style>
-    .main {background-color: #cbd3da;}
-    .stButton>button {background-color: #2E8B57; color: white; border-radius: 10px;}
-    .card {background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin-bottom: 20px;}
-    h1, h2, h3 {color: #1f4d3d;}
-    .exercise-card {
-        background: #ffffff;
-        border: 1px solid #dce5df;
-        border-radius: 8px;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+    :root {
+        --ink: #07111f;
+        --muted: #526174;
+        --soft: #f8fafc;
+        --line: #dce5f2;
+        --blue: #2563eb;
+        --cyan: #06b6d4;
+        --green: #10b981;
+        --amber: #f59e0b;
+        --coral: #ff6b4a;
+        --violet: #8b5cf6;
+        --card: rgba(255, 255, 255, 0.92);
+        --shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+    }
+
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .stApp {
+        background:
+            radial-gradient(circle at 84% 4%, rgba(37, 99, 235, 0.18), transparent 34%),
+            radial-gradient(circle at 12% 22%, rgba(16, 185, 129, 0.12), transparent 30%),
+            linear-gradient(135deg, #f8fafc 0%, #eff6ff 52%, #f0fdf4 100%);
+        color: var(--ink);
+    }
+
+    .block-container {
+        max-width: 1240px;
+        padding-top: 2.2rem;
+        padding-bottom: 4rem;
+    }
+
+    h1, h2, h3 {
+        color: var(--ink);
+        letter-spacing: -0.02em;
+    }
+
+    div[data-testid="stMarkdownContainer"] p {
+        color: var(--muted);
+    }
+
+    .app-hero {
+        position: relative;
         overflow: hidden;
-        box-shadow: 0 3px 14px rgba(31,77,61,0.10);
+        border: 1px solid rgba(220, 229, 242, 0.9);
+        border-radius: 34px;
+        padding: 54px 58px;
+        margin-bottom: 28px;
+        min-height: 360px;
+        background:
+            linear-gradient(118deg, rgba(255,255,255,0.96) 0%, rgba(239,246,255,0.95) 48%, rgba(236,253,245,0.94) 100%);
+        box-shadow: var(--shadow);
+    }
+
+    .app-hero:before {
+        content: "";
+        position: absolute;
+        width: 420px;
+        height: 420px;
+        right: -110px;
+        top: -120px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(37,99,235,0.34), rgba(6,182,212,0.12) 48%, transparent 70%);
+    }
+
+    .app-hero:after {
+        content: "";
+        position: absolute;
+        right: 86px;
+        bottom: 44px;
+        width: 300px;
+        height: 210px;
+        border-radius: 42px;
+        transform: rotate(-6deg);
+        background:
+            linear-gradient(135deg, rgba(37,99,235,0.96), rgba(6,182,212,0.9) 48%, rgba(16,185,129,0.9)),
+            linear-gradient(90deg, transparent, rgba(255,255,255,0.4));
+        box-shadow: 0 32px 80px rgba(37, 99, 235, 0.28);
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 2;
+        max-width: 690px;
+    }
+
+    .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 13px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.09);
+        color: var(--blue);
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
         margin-bottom: 18px;
     }
+
+    .hero-title {
+        margin: 0;
+        max-width: 760px;
+        color: var(--ink);
+        font-size: clamp(2.8rem, 6vw, 5.6rem);
+        line-height: 0.94;
+        font-weight: 900;
+        letter-spacing: -0.055em;
+    }
+
+    .hero-title span {
+        background: linear-gradient(105deg, var(--blue), var(--cyan), var(--green));
+        -webkit-background-clip: text;
+        color: transparent;
+    }
+
+    .hero-copy {
+        margin-top: 24px;
+        max-width: 650px;
+        color: #405067;
+        font-size: 1.18rem;
+        line-height: 1.65;
+        font-weight: 500;
+    }
+
+    .hero-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 28px;
+    }
+
+    .hero-pill {
+        padding: 9px 13px;
+        border-radius: 999px;
+        color: #0f172a;
+        background: rgba(255,255,255,0.78);
+        border: 1px solid rgba(220,229,242,0.95);
+        font-size: 0.85rem;
+        font-weight: 800;
+    }
+
+    .metric-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        margin: 18px 0 30px;
+    }
+
+    .metric-card {
+        min-height: 118px;
+        padding: 20px;
+        border-radius: 24px;
+        background: var(--card);
+        border: 1px solid rgba(220, 229, 242, 0.95);
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+    }
+
+    .metric-card b {
+        display: block;
+        color: var(--ink);
+        font-size: 1.65rem;
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+        margin-top: 8px;
+    }
+
+    .metric-card span {
+        color: #66758a;
+        font-size: 0.88rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    .section-shell {
+        margin-top: 26px;
+        padding: 28px;
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(220, 229, 242, 0.92);
+        box-shadow: 0 20px 52px rgba(15, 23, 42, 0.08);
+    }
+
+    .section-label {
+        display: inline-flex;
+        padding: 7px 11px;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: var(--blue);
+        font-size: 0.76rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+    }
+
+    .section-title {
+        margin: 0 0 8px;
+        color: var(--ink);
+        font-size: 1.65rem;
+        line-height: 1.15;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+    }
+
+    .section-copy {
+        max-width: 760px;
+        margin: 0 0 20px;
+        color: var(--muted);
+        line-height: 1.55;
+        font-weight: 500;
+    }
+
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stNumberInput"] input,
+    div[data-testid="stTextArea"] textarea,
+    div[data-baseweb="select"] > div,
+    div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div {
+        border-radius: 16px !important;
+        border-color: var(--line) !important;
+        background: rgba(255,255,255,0.94) !important;
+        min-height: 48px;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.04);
+    }
+
+    label, div[data-testid="stWidgetLabel"] p {
+        color: #233044 !important;
+        font-weight: 800 !important;
+    }
+
+    .stButton>button,
+    .stDownloadButton>button {
+        min-height: 52px;
+        border: none;
+        border-radius: 16px;
+        background: linear-gradient(105deg, var(--blue), var(--cyan));
+        color: white;
+        font-weight: 900;
+        letter-spacing: -0.01em;
+        box-shadow: 0 18px 34px rgba(37, 99, 235, 0.24);
+        transition: transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    .stButton>button:hover,
+    .stDownloadButton>button:hover {
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 24px 42px rgba(37, 99, 235, 0.30);
+    }
+
+    div[data-testid="stExpander"] {
+        border-radius: 22px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.76);
+        box-shadow: 0 16px 36px rgba(15, 23, 42, 0.06);
+    }
+
+    .stAlert {
+        border-radius: 18px;
+    }
+
+    .exercise-card {
+        background: rgba(255,255,255,0.94);
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        overflow: hidden;
+        box-shadow: 0 22px 54px rgba(15,23,42,0.10);
+        margin-bottom: 24px;
+    }
+
     .exercise-visual {
-        min-height: 138px;
-        padding: 18px;
-        background: linear-gradient(135deg, #1f4d3d 0%, #2E8B57 55%, #dcefe5 100%);
-        color: #ffffff;
+        min-height: 176px;
+        padding: 28px;
+        color: white;
         display: flex;
         align-items: end;
+        position: relative;
     }
+
+    .exercise-visual:after {
+        content: "";
+        position: absolute;
+        inset: 18px;
+        border-radius: 22px;
+        border: 1px solid rgba(255,255,255,0.24);
+        pointer-events: none;
+    }
+
     .exercise-visual h3 {
-        color: #ffffff;
+        position: relative;
+        z-index: 2;
+        color: white;
         margin: 0;
-        font-size: 1.25rem;
-        line-height: 1.25;
+        max-width: 760px;
+        font-size: clamp(1.45rem, 3vw, 2.3rem);
+        line-height: 1.02;
+        letter-spacing: -0.04em;
+        font-weight: 900;
     }
-    .exercise-body {padding: 16px 18px;}
+
+    .exercise-body {
+        padding: 22px 26px 26px;
+        color: #334155;
+        line-height: 1.58;
+        font-size: 0.98rem;
+    }
+
     .exercise-body ul {margin-top: 6px;}
+
     .exercise-meta {
         display: inline-block;
-        margin: 4px 8px 8px 0;
-        padding: 4px 8px;
+        margin: 4px 8px 14px 0;
+        padding: 7px 10px;
         border-radius: 999px;
-        background: #eef6f1;
-        color: #1f4d3d;
-        font-size: 0.82rem;
-        font-weight: 600;
+        background: #ecfdf5;
+        color: #047857;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
     }
+
     .video-link {
         display: inline-block;
-        margin-top: 8px;
-        padding: 8px 11px;
-        border-radius: 8px;
-        background: #1f4d3d;
-        color: #ffffff !important;
+        margin-top: 16px;
+        padding: 11px 14px;
+        border-radius: 14px;
+        background: #07111f;
+        color: white !important;
         text-decoration: none;
-        font-weight: 700;
+        font-weight: 900;
+    }
+
+    .plan-actions {
+        padding: 22px;
+        border-radius: 24px;
+        background: linear-gradient(135deg, rgba(239,246,255,0.95), rgba(236,253,245,0.95));
+        border: 1px solid var(--line);
+        margin: 22px 0;
+    }
+
+    @media (max-width: 900px) {
+        .block-container {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        .app-hero {
+            padding: 34px 24px;
+            border-radius: 26px;
+            min-height: 0;
+        }
+
+        .app-hero:after {
+            opacity: 0.24;
+            right: -90px;
+            bottom: 30px;
+        }
+
+        .metric-strip {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 560px) {
+        .hero-title {
+            font-size: 3rem;
+        }
+
+        .metric-strip {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 """,
     unsafe_allow_html=True,
 )
 
-st.title("Personalized Rehab Exercise Recommender")
-st.markdown("**Safe | Personalized | Expert-Guided**")
+st.markdown(
+    """
+<section class="app-hero">
+    <div class="hero-content">
+        <div class="eyebrow">AI + textbook-grounded rehab</div>
+        <h1 class="hero-title">Exercise plans that feel <span>clinically personal.</span></h1>
+        <p class="hero-copy">
+            Screen symptoms, match structured exercise data, retrieve rehabilitation evidence, and create a safe
+            home program with PDF export and follow-up guidance.
+        </p>
+        <div class="hero-pills">
+            <span class="hero-pill">Red-flag screening</span>
+            <span class="hero-pill">RAG evidence</span>
+            <span class="hero-pill">Personalized dosage</span>
+            <span class="hero-pill">PDF prescription</span>
+        </div>
+    </div>
+</section>
+""",
+    unsafe_allow_html=True,
+)
 
 
 # ---------------- LOAD DATA ----------------
@@ -91,11 +443,34 @@ def load_core_data():
 
 core_df = load_core_data()
 
+unique_conditions = core_df["condition"].replace("", pd.NA).dropna().nunique() if "condition" in core_df else len(core_df)
+unique_exercises = (
+    core_df["exercise_name"].replace("", pd.NA).dropna().nunique()
+    if "exercise_name" in core_df
+    else len(core_df)
+)
+vectorstore_ready = os.path.exists("textbook_vectorstore/index.faiss") and os.path.exists("textbook_vectorstore/index.pkl")
+
+st.markdown(
+    f"""
+<div class="metric-strip">
+    <div class="metric-card"><span>Exercise library</span><b>{unique_exercises}</b><p>Structured options ready for matching</p></div>
+    <div class="metric-card"><span>Condition coverage</span><b>{unique_conditions}</b><p>Profiles available in the dataset</p></div>
+    <div class="metric-card"><span>Evidence retrieval</span><b>{"Ready" if vectorstore_ready else "Setup"}</b><p>Textbook vectorstore status</p></div>
+    <div class="metric-card"><span>Output</span><b>PDF</b><p>Home exercise prescription export</p></div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
 
 # ---------------- MODELS ----------------
 @st.cache_resource(show_spinner=False)
 def load_embedding_model():
-    return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    return HuggingFaceEmbeddings(
+        model_name="all-MiniLM-L6-v2",
+        model_kwargs={"local_files_only": True},
+    )
 
 
 load_dotenv()
@@ -238,7 +613,11 @@ def load_rag_vectorstore():
 
 @st.cache_data(show_spinner=False, ttl=3600)
 def retrieve_textbook_context(query, mode="Balanced evidence"):
-    vectorstore = load_rag_vectorstore()
+    try:
+        vectorstore = load_rag_vectorstore()
+    except Exception:
+        return ""
+
     search_k = DEEP_RAG_SEARCH_K if mode == "Deep evidence" else BALANCED_RAG_SEARCH_K
     fetch_k = DEEP_RAG_FETCH_K if mode == "Deep evidence" else BALANCED_RAG_FETCH_K
     retriever = vectorstore.as_retriever(
@@ -320,7 +699,16 @@ def build_rag_query(condition, goal, symptoms):
 
 
 # ====================== SIDEBAR & INPUTS ======================
-st.subheader("Your Information")
+st.markdown(
+    """
+<div class="section-shell">
+    <div class="section-label">Step 01</div>
+    <h2 class="section-title">Build your recommendation profile</h2>
+    <p class="section-copy">Enter the condition, goals, symptoms, and safety details the recommender needs before it creates a personalized plan.</p>
+</div>
+""",
+    unsafe_allow_html=True,
+)
 
 col1, col2 = st.columns([2, 1])
 with col1:
@@ -337,7 +725,16 @@ with col2:
     gender = st.selectbox("**Gender**", ["Male", "Female"])
     pain_level = st.slider("**Pain Level (1-10)**", 1, 10, 5)
 
-st.subheader("Important History & Details")
+st.markdown(
+    """
+<div class="section-shell">
+    <div class="section-label">Step 02</div>
+    <h2 class="section-title">Safety, history, and home setup</h2>
+    <p class="section-copy">The plan changes based on irritability, onset, equipment, comorbidities, and previous exercise response.</p>
+</div>
+""",
+    unsafe_allow_html=True,
+)
 col_a, col_b = st.columns(2)
 with col_a:
     time_since_injury = st.selectbox("Time Since Injury/Onset", ["Acute (<2 weeks)", "Subacute (2-6 weeks)", "Chronic (>6 weeks)"])
@@ -373,7 +770,18 @@ previous_response = st.text_area(
     placeholder="e.g. Straight leg raise helped, squats increased pain...",
 )
 
-with st.expander("Generation Options"):
+st.markdown(
+    """
+<div class="section-shell">
+    <div class="section-label">Step 03</div>
+    <h2 class="section-title">Generate an evidence-informed plan</h2>
+    <p class="section-copy">Choose the evidence depth, then generate a plan with exercise dosage, precautions, progression rules, and video guidance.</p>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+with st.expander("Evidence and generation options", expanded=True):
     generation_mode = st.radio(
         "Evidence mode",
         ["Balanced evidence", "Deep evidence"],
@@ -864,6 +1272,7 @@ When To Seek Medical Care:
 
 
 # ====================== GENERATE PLAN ======================
+st.markdown('<div class="plan-actions">', unsafe_allow_html=True)
 save_plan_locally = st.checkbox(
     "Save this plan locally on this device",
     value=False,
@@ -904,6 +1313,10 @@ if st.button("Generate Personalized Plan", type="primary", use_container_width=T
                 condition-specific contraindications functional outcomes
                 """
             textbook_context = retrieve_textbook_context(rag_query, generation_mode)
+            if not textbook_context:
+                st.warning(
+                    "Textbook evidence retrieval is unavailable locally, so this run will use the structured exercise dataset and safety rules."
+                )
 
             dataset_exercises = format_dataset_exercises(candidate_rows)
             profile = format_patient_profile(profile_data)
@@ -911,9 +1324,15 @@ if st.button("Generate Personalized Plan", type="primary", use_container_width=T
             try:
                 final_plan = clinical_vet(profile, dataset_exercises, textbook_context, safety_cautions, generation_mode)
             except Exception as llm_error:
-                st.error(describe_groq_error(llm_error))
-                st.info("The plan was not generated because Groq rejected the request. Fix the Groq/network issue, then click Generate again.")
-                st.stop()
+                groq_issue = describe_groq_error(llm_error)
+                st.warning(groq_issue)
+                st.info("Using the structured exercise dataset fallback so you can still test the plan workflow.")
+                final_plan = build_fallback_plan(
+                    profile_data,
+                    candidate_rows,
+                    safety_cautions,
+                    reason=groq_issue,
+                )
 
             st.session_state.final_plan = final_plan
             st.session_state.condition = condition
@@ -923,6 +1342,18 @@ if st.button("Generate Personalized Plan", type="primary", use_container_width=T
             st.session_state.video_lookup = build_video_lookup(candidate_rows, condition)
 
             st.success("Plan generated successfully.")
+            st.toast("Personalized rehab plan ready.")
+            st.balloons()
+            st.markdown(
+                """
+<div class="section-shell">
+    <div class="section-label">Plan ready</div>
+    <h2 class="section-title">Your prescription has been generated</h2>
+    <p class="section-copy">Review the exercise cards, open the full prescription text if needed, then export the PDF.</p>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
             render_exercise_cards(final_plan, st.session_state.video_lookup, condition)
             with st.expander("View full prescription text"):
                 st.markdown(final_plan)
@@ -960,10 +1391,21 @@ if st.button("Generate Personalized Plan", type="primary", use_container_width=T
             with st.expander("Technical details"):
                 st.code(traceback.format_exc())
 
+st.markdown("</div>", unsafe_allow_html=True)
+
 
 # ====================== CHAT INTERFACE ======================
 if "final_plan" in st.session_state:
-    st.subheader("Ask Questions About Your Plan")
+    st.markdown(
+        """
+<div class="section-shell">
+    <div class="section-label">Follow-up</div>
+    <h2 class="section-title">Ask questions about your plan</h2>
+    <p class="section-copy">Ask about modifications, pain response, equipment substitutions, progression, or when to pause and seek review.</p>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
 
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
