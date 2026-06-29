@@ -1,11 +1,13 @@
 import json
 import os
+import pickle
 import re
 import threading
 import traceback
 import unicodedata
 from datetime import datetime
 from html import escape
+from pathlib import Path
 from urllib.parse import quote_plus
 
 import pandas as pd
@@ -22,6 +24,11 @@ from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+
+BASE_DIR = Path(__file__).resolve().parent
+VECTORSTORE_PATH = BASE_DIR / "textbook_vectorstore"
+TEXTBOOK_FOLDER = BASE_DIR / "textbooks"
+DATASET_PATH = BASE_DIR / "rehab_recommender.xlsx"
 
 st.set_page_config(page_title="Personalized Rehab Exercise Recommender", layout="wide")
 
@@ -436,7 +443,7 @@ st.markdown(
 # ---------------- LOAD DATA ----------------
 @st.cache_data(show_spinner=False)
 def load_core_data():
-    df = pd.read_excel("rehab_recommender.xlsx")
+    df = pd.read_excel(DATASET_PATH)
     df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
     return df.fillna("")
 
@@ -449,7 +456,7 @@ unique_exercises = (
     if "exercise_name" in core_df
     else len(core_df)
 )
-vectorstore_ready = os.path.exists("textbook_vectorstore/index.faiss") and os.path.exists("textbook_vectorstore/index.pkl")
+vectorstore_ready = (VECTORSTORE_PATH / "index.faiss").exists() and (VECTORSTORE_PATH / "index.pkl").exists()
 
 st.markdown(
     f"""
@@ -572,22 +579,20 @@ DEEP_MAX_RAG_CONTEXT_CHARS = 9500
 @st.cache_resource(show_spinner=False)
 def load_rag_vectorstore():
     embedder = load_embedding_model()
-    vectorstore_path = "textbook_vectorstore"
-    if os.path.exists(vectorstore_path):
-        return FAISS.load_local(vectorstore_path, embedder, allow_dangerous_deserialization=True)
+    if VECTORSTORE_PATH.exists():
+        return FAISS.load_local(str(VECTORSTORE_PATH), embedder, allow_dangerous_deserialization=True)
 
-    textbook_folder = "textbooks"
-    if not os.path.isdir(textbook_folder):
+    if not TEXTBOOK_FOLDER.is_dir():
         st.error("Textbook folder not found and no prebuilt vectorstore is available.")
         st.stop()
 
     st.info("Building textbook vector database. This can take several minutes on first run.")
     documents = []
-    for filename in os.listdir(textbook_folder):
+    for filename in os.listdir(TEXTBOOK_FOLDER):
         if not filename.lower().endswith(".pdf"):
             continue
         try:
-            loader = PyMuPDFLoader(os.path.join(textbook_folder, filename))
+            loader = PyMuPDFLoader(str(TEXTBOOK_FOLDER / filename))
             docs = loader.load()
             for doc in docs:
                 doc.metadata["source"] = filename
@@ -606,9 +611,71 @@ def load_rag_vectorstore():
     )
     chunks = splitter.split_documents(documents)
     vectorstore = FAISS.from_documents(chunks, embedder)
-    vectorstore.save_local(vectorstore_path)
+    vectorstore.save_local(str(VECTORSTORE_PATH))
     st.success(f"Processed {len(chunks)} textbook chunks.")
     return vectorstore
+
+
+@st.cache_resource(show_spinner=False)
+def load_vectorstore_docstore_documents():
+    index_pickle = VECTORSTORE_PATH / "index.pkl"
+    if not index_pickle.exists():
+        return []
+
+    with index_pickle.open("rb") as handle:
+        docstore, _index_to_docstore_id = pickle.load(handle)
+
+    raw_docs = getattr(docstore, "_dict", {})
+    if isinstance(raw_docs, dict):
+        return list(raw_docs.values())
+    return []
+
+
+def tokenize_for_lexical_search(text):
+    return {
+        token
+        for token in re.findall(r"[a-zA-Z][a-zA-Z\-]{2,}", text.lower())
+        if token
+        not in {
+            "and",
+            "the",
+            "for",
+            "with",
+            "from",
+            "that",
+            "this",
+            "your",
+            "exercise",
+            "exercises",
+            "physiotherapy",
+        }
+    }
+
+
+def retrieve_textbook_context_from_docstore(query, mode="Balanced evidence"):
+    docs = load_vectorstore_docstore_documents()
+    if not docs:
+        return ""
+
+    query_terms = tokenize_for_lexical_search(query)
+    if not query_terms:
+        return build_textbook_context(docs[:BALANCED_RAG_SEARCH_K], mode)
+
+    scored_docs = []
+    for doc in docs:
+        text = getattr(doc, "page_content", "") or ""
+        metadata = getattr(doc, "metadata", {}) or {}
+        haystack = f"{metadata.get('source', '')} {text}".lower()
+        score = sum(1 for term in query_terms if term in haystack)
+        if score:
+            scored_docs.append((score, doc))
+
+    scored_docs.sort(key=lambda item: item[0], reverse=True)
+    limit = DEEP_RAG_SEARCH_K if mode == "Deep evidence" else BALANCED_RAG_SEARCH_K
+    selected = [doc for _, doc in scored_docs[:limit]]
+    if not selected:
+        selected = docs[:limit]
+    return build_textbook_context(selected, mode)
 
 
 @st.cache_data(show_spinner=False, ttl=3600)
@@ -616,7 +683,7 @@ def retrieve_textbook_context(query, mode="Balanced evidence"):
     try:
         vectorstore = load_rag_vectorstore()
     except Exception:
-        return ""
+        return retrieve_textbook_context_from_docstore(query, mode)
 
     search_k = DEEP_RAG_SEARCH_K if mode == "Deep evidence" else BALANCED_RAG_SEARCH_K
     fetch_k = DEEP_RAG_FETCH_K if mode == "Deep evidence" else BALANCED_RAG_FETCH_K
@@ -624,7 +691,10 @@ def retrieve_textbook_context(query, mode="Balanced evidence"):
         search_type="mmr",
         search_kwargs={"k": search_k, "fetch_k": fetch_k, "lambda_mult": 0.45 if mode == "Deep evidence" else 0.65},
     )
-    return build_textbook_context(retriever.invoke(query), mode)
+    try:
+        return build_textbook_context(retriever.invoke(query), mode)
+    except Exception:
+        return retrieve_textbook_context_from_docstore(query, mode)
 
 
 def warm_rag_in_background():
