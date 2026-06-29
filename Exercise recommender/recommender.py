@@ -6,9 +6,10 @@ import threading
 import traceback
 import unicodedata
 from datetime import datetime
-from html import escape
+from html import escape, unescape
 from pathlib import Path
 from urllib.parse import quote_plus
+from urllib.request import Request, urlopen
 
 import pandas as pd
 import streamlit as st
@@ -697,6 +698,54 @@ def retrieve_textbook_context(query, mode="Balanced evidence"):
         return retrieve_textbook_context_from_docstore(query, mode)
 
 
+@st.cache_data(show_spinner=False, ttl=21600)
+def retrieve_web_context(condition_text, goal_text, symptoms_text, mode="Balanced evidence"):
+    query = (
+        f"{condition_text} physiotherapy rehabilitation exercise guideline precautions "
+        f"{goal_text} {symptoms_text}"
+    )
+    encoded = quote_plus(query)
+    url = f"https://duckduckgo.com/html/?q={encoded}"
+    try:
+        request = Request(
+            url,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
+                )
+            },
+        )
+        with urlopen(request, timeout=8) as response:
+            html = response.read(250000).decode("utf-8", errors="ignore")
+    except Exception:
+        return ""
+
+    result_blocks = re.findall(
+        r'<a[^>]+class="result__a"[^>]*>(.*?)</a>.*?<a[^>]+class="result__snippet"[^>]*>(.*?)</a>',
+        html,
+        flags=re.S,
+    )
+    if not result_blocks:
+        result_blocks = re.findall(
+            r'class="result__a"[^>]*>(.*?)</a>.*?class="result__snippet"[^>]*>(.*?)</',
+            html,
+            flags=re.S,
+        )
+
+    max_results = 5 if mode == "Deep evidence" else 3
+    lines = []
+    for index, (title_html, snippet_html) in enumerate(result_blocks[:max_results], start=1):
+        title = re.sub(r"<[^>]+>", " ", title_html)
+        snippet = re.sub(r"<[^>]+>", " ", snippet_html)
+        title = " ".join(unescape(title).split())
+        snippet = " ".join(unescape(snippet).split())
+        if title or snippet:
+            lines.append(f"[Current web context {index}] {title}: {snippet}")
+
+    return "\n".join(lines)[:2600]
+
+
 def warm_rag_in_background():
     if st.session_state.get("rag_warm_started"):
         return
@@ -862,6 +911,14 @@ with st.expander("Evidence and generation options", expanded=True):
         ),
         horizontal=True,
     )
+    use_web_evidence = st.checkbox(
+        "Search the web for current supporting guidance",
+        value=True,
+        help=(
+            "Adds recent public web context to the AI prompt. It supports, but does not replace, "
+            "patient details, safety screening, dataset matches, and textbook evidence."
+        ),
+    )
 
 def valid_conditions(text):
     if not text:
@@ -904,6 +961,40 @@ def build_patient_profile():
 
 def format_patient_profile(profile_data):
     return "\n".join(f"- {key.replace('_', ' ').title()}: {value}" for key, value in profile_data.items())
+
+
+def build_personalization_brief(profile_data):
+    equipment_text = ", ".join(profile_data["equipment"])
+    intensity = "low irritability / standard progression"
+    if profile_data["pain_level"] >= 8:
+        intensity = "high irritability / gentle symptom-calming only"
+    elif profile_data["pain_level"] >= 6:
+        intensity = "moderate irritability / pain-limited loading"
+    elif profile_data["pain_level"] <= 3:
+        intensity = "low irritability / graded strengthening may be considered"
+
+    onset = profile_data["time_since_injury"]
+    if onset.startswith("Acute"):
+        phase = "acute-stage plan: protect tissue, reduce symptoms, preserve safe range, avoid aggressive loading"
+    elif onset.startswith("Subacute"):
+        phase = "subacute-stage plan: restore mobility, begin graded activation, progress cautiously"
+    else:
+        phase = "chronic/longer-duration plan: graded exposure, strengthening, function, self-management"
+
+    considerations = [
+        f"Age {profile_data['age']} and BMI {profile_data['bmi']} should influence starting dose, loading, and fatigue monitoring.",
+        f"Gender recorded as {profile_data['gender']}; avoid assumptions, but tailor language and safety notes respectfully.",
+        f"Main condition is {profile_data['condition']} with {profile_data['condition_duration']} pattern and {onset.lower()} timing.",
+        f"Pain is {profile_data['pain_level']}/10, so use {intensity}.",
+        f"Symptoms to address directly: {profile_data['symptoms'] or 'not specified'}.",
+        f"Primary goal is {profile_data['goal']}; additional goals: {profile_data['other_goals']}.",
+        f"Daily activity level is {profile_data['daily_activity']}; prescribe a realistic starting volume and functional progression.",
+        f"Recent surgery status: {profile_data['recent_surgery']}; high blood pressure: {profile_data['high_blood_pressure']}; dizziness/balance: {profile_data['dizziness_balance']}; diabetes: {profile_data['diabetes']}.",
+        f"Available home equipment: {equipment_text}; do not prescribe equipment-dependent exercises without alternatives.",
+        f"Previous exercise response: {profile_data['previous_exercise_response'] or 'none reported'}; repeat helpful strategies and avoid or regress aggravating ones.",
+        phase,
+    ]
+    return "\n".join(f"- {item}" for item in considerations)
 
 
 def screen_red_flags(profile_data):
@@ -1042,13 +1133,24 @@ def format_dataset_exercises(rows):
 
 def build_fallback_plan(profile_data, rows, cautions, reason=None):
     selected = rows.head(5)
+    personalization = build_personalization_brief(profile_data)
+    pain_limit = "2-3/10" if profile_data["pain_level"] >= 7 else "3-4/10"
+    frequency = "2-3 days per week" if profile_data["pain_level"] >= 7 or profile_data["time_since_injury"].startswith("Acute") else "3-4 days per week"
+    if profile_data["dizziness_balance"] == "Frequent":
+        balance_note = "Use supported positions only because frequent dizziness/balance issues were reported."
+    elif profile_data["dizziness_balance"] == "Occasional":
+        balance_note = "Use a chair, wall, or rail nearby because occasional dizziness/balance issues were reported."
+    else:
+        balance_note = "Balance support can be progressed if symptoms remain settled."
+
     lines = [
-        "Safety Summary:",
-        "This plan uses the structured exercise dataset because the AI service was unavailable or slow. "
-        "Keep all exercises gentle, controlled, and pain-limited.",
+        "Consultant Summary:",
+        "- This plan is personalized from your submitted profile, the structured exercise dataset, and safety rules.",
+        f"- Condition: {profile_data['condition']} | Goal: {profile_data['goal']} | Pain: {profile_data['pain_level']}/10 | Onset: {profile_data['time_since_injury']}.",
+        f"- Start with {frequency}, keep pain at or below {pain_limit}, and progress only if symptoms settle within 24 hours.",
     ]
     if reason:
-        lines.append(f"Service note: {reason}")
+        lines.append(f"- Service note: {reason}")
     if cautions:
         lines.extend([f"- {caution}" for caution in cautions])
     lines.append(
@@ -1056,7 +1158,9 @@ def build_fallback_plan(profile_data, rows, cautions, reason=None):
         "chest pain, shortness of breath, marked swelling, fever, or any neurological change."
     )
 
-    lines.append("\nTop Recommended Exercises:")
+    lines.extend(["\nWhy This Plan Fits Your Profile:", personalization])
+
+    lines.append("\nExercise Prescription:")
     if selected.empty:
         lines.extend(
             [
@@ -1064,6 +1168,8 @@ def build_fallback_plan(profile_data, rows, cautions, reason=None):
                 "Please use the safety rules below and consult a qualified physiotherapist for a condition-specific prescription.",
                 "\nEquipment-Based Modifications:",
                 f"Available equipment: {', '.join(profile_data['equipment'])}.",
+                f"- {balance_note}",
+                f"- Previous response considered: {profile_data['previous_exercise_response'] or 'none reported'}.",
                 "\nWeekly Progression:",
                 "Week 1-2: Gentle, pain-free mobility only.",
                 "Week 3-4: Progress only after clinician review or if symptoms clearly improve.",
@@ -1092,7 +1198,7 @@ def build_fallback_plan(profile_data, rows, cautions, reason=None):
                 "  - Step 2: Perform the movement slowly and within a comfortable range.",
                 "  - Step 3: Return to the starting position with control.",
                 f"- Dosage: {reps}",
-                "- Frequency: Start 3-4 days per week unless symptoms increase.",
+                f"- Frequency: Start {frequency} unless symptoms increase.",
                 f"- Equipment: {equipment_needed}",
                 f"- Stop or modify if: {precautions}",
             ]
@@ -1105,8 +1211,11 @@ def build_fallback_plan(profile_data, rows, cautions, reason=None):
         [
             "\nEquipment-Based Modifications:",
             f"Use only available equipment: {', '.join(profile_data['equipment'])}. If an exercise needs equipment you do not have, choose the no-equipment option or ask a clinician for a substitute.",
+            f"- {balance_note}",
+            f"- Previous exercise response: {profile_data['previous_exercise_response'] or 'none reported'}. Repeat helpful strategies and regress any exercise that previously aggravated symptoms.",
+            f"- Daily activity level: {profile_data['daily_activity']}. Keep total starting volume realistic for this baseline.",
             "\nWeekly Progression:",
-            "Week 1-2: Use the easiest version and keep pain at or below 3/10 during and after exercise.",
+            f"Week 1-2: Use the easiest version and keep pain at or below {pain_limit} during and after exercise.",
             "Week 3-4: Add small increases in repetitions or range only if symptoms settle within 24 hours.",
             "Week 5+: Progress resistance, balance challenge, or function gradually, one variable at a time.",
             "\nWhen To Seek Medical Care:",
@@ -1257,7 +1366,7 @@ def render_exercise_cards(plan_text, video_lookup, condition_text):
 
 
 # ====================== CLINICAL VETTING ENGINE ======================
-def clinical_vet(profile, dataset_ex, textbook_context, cautions, mode):
+def clinical_vet(profile, personalization_brief, dataset_ex, textbook_context, web_context, cautions, mode):
     if mode == "Deep evidence":
         mode_instruction = """
 Mode: Deep evidence.
@@ -1289,18 +1398,25 @@ DATASET EXERCISE CANDIDATES:
 {dataset_ex}
 
 INTERNAL TEXTBOOK EVIDENCE:
-{textbook_context}
+{textbook_context or "No condition-specific textbook context was retrieved. Use the patient profile, dataset, and current web context cautiously."}
+
+CURRENT WEB CONTEXT:
+{web_context or "No current web context was available. Do not claim current web evidence was used."}
+
+PROFILE-BASED TAILORING REQUIREMENTS:
+{personalization_brief}
 
 ADDITIONAL SAFETY CAUTIONS:
 {chr(10).join(f"- {item}" for item in cautions) if cautions else "- None reported."}
 
 Rules:
 - Use every patient profile item when tailoring the prescription: age, gender, BMI, condition, duration, onset stage, pain level, symptoms, main goal, other goals, activity level, surgery history, blood pressure, dizziness/balance, diabetes, equipment, and previous exercise response.
+- The Consultant Summary must explicitly mention the most important profile factors that changed the plan.
 - Prefer structured dataset exercises when they match the condition and profile.
-- If the structured dataset has no direct condition match, use internal textbook evidence and expert physiotherapy reasoning from the full patient profile to generate the plan.
-- If both dataset and textbook evidence are sparse, still provide a safe, practical consultant prescription using general physiotherapy principles, but make it cautious and advise in-person review when needed.
-- Use textbook context to refine exercise choice, dosage, precautions, and progression; do not override contraindications.
-- Do not mention textbooks, sources, source labels, retrieval, internal evidence, dataset, or AI process to the patient.
+- Use textbook context to refine exercise choice, dosage, precautions, and progression whenever it is relevant to the submitted condition or related body region.
+- If textbook context is not condition-specific enough, say the prescription is based on the patient's profile, dataset match, safety rules, and general physiotherapy principles. Do not invent textbook support.
+- Use current web context only for up-to-date supporting guidance, precautions, and terminology. Do not let web snippets override red flags, contraindications, textbook context, dataset contraindications, or patient-specific safety constraints.
+- Do not mention hidden source labels, retrieval mechanics, internal evidence, dataset, or AI process to the patient. You may say "current guidance" only if web context is present and relevant.
 - Do not recommend exercises that conflict with listed contraindications, severe pain, surgery status, dizziness, uncontrolled conditions, or equipment availability.
 - Keep intensity low for severe pain, acute onset, post-surgical status, frequent dizziness, or uncontrolled diabetes.
 - Include clear stop rules: worsening pain, numbness, weakness, dizziness, chest pain, shortness of breath, swelling, fever, or neurological change.
@@ -1308,10 +1424,14 @@ Rules:
 - Use clear bullets and short lines. Do not write exercise instructions as dense paragraphs.
 - Each exercise must have the exact sub-bullets shown below.
 - Each exercise must include a Video line. If a dataset video_url is available, use it. If not, write "Video: Provided in the exercise card".
+- Add a "Why This Fits Your Profile" section after Consultant Summary. It must include at least 6 bullets covering pain level, onset/duration, symptoms, goals, activity level, equipment, comorbidities/safety, and previous exercise response.
 
 Output Format:
 Consultant Summary:
 - 2-4 short bullet points.
+
+Why This Fits Your Profile:
+- Bullet points only.
 
 Exercise Prescription:
 
@@ -1387,12 +1507,28 @@ if st.button("Generate Personalized Plan", type="primary", use_container_width=T
                 st.warning(
                     "Textbook evidence retrieval is unavailable locally, so this run will use the structured exercise dataset and safety rules."
                 )
+            web_context = ""
+            if use_web_evidence:
+                web_context = retrieve_web_context(condition, combined_goals, specific_symptoms, generation_mode)
+                if web_context:
+                    st.caption("Current web context was added to the clinical reasoning prompt.")
+                else:
+                    st.caption("Current web context was unavailable, so the plan uses patient details, dataset matches, textbook evidence, and safety rules.")
 
             dataset_exercises = format_dataset_exercises(candidate_rows)
             profile = format_patient_profile(profile_data)
+            personalization_brief = build_personalization_brief(profile_data)
 
             try:
-                final_plan = clinical_vet(profile, dataset_exercises, textbook_context, safety_cautions, generation_mode)
+                final_plan = clinical_vet(
+                    profile,
+                    personalization_brief,
+                    dataset_exercises,
+                    textbook_context,
+                    web_context,
+                    safety_cautions,
+                    generation_mode,
+                )
             except Exception as llm_error:
                 groq_issue = describe_groq_error(llm_error)
                 st.warning(groq_issue)
@@ -1408,6 +1544,7 @@ if st.button("Generate Personalized Plan", type="primary", use_container_width=T
             st.session_state.condition = condition
             st.session_state.profile = profile_data
             st.session_state.textbook_context = textbook_context
+            st.session_state.web_context = web_context
             st.session_state.dataset_exercises = dataset_exercises
             st.session_state.video_lookup = build_video_lookup(candidate_rows, condition)
 
@@ -1491,7 +1628,8 @@ if "final_plan" in st.session_state:
         with st.chat_message("user"):
             st.markdown(user_question)
 
-        chat_profile = format_patient_profile(st.session_state.get("profile", {}))
+        chat_profile_data = st.session_state.get("profile") or build_patient_profile()
+        chat_profile = format_patient_profile(chat_profile_data)
         question_profile = {
             "condition": st.session_state.get("condition", ""),
             "symptoms": user_question,
@@ -1514,6 +1652,7 @@ if "final_plan" in st.session_state:
                     )
                 else:
                     stored_textbook_context = st.session_state.get("textbook_context", "")
+                    stored_web_context = st.session_state.get("web_context", "")
                     stored_dataset_exercises = st.session_state.get("dataset_exercises", "")
                     try:
                         question_context = retrieve_textbook_context(
@@ -1522,9 +1661,21 @@ if "final_plan" in st.session_state:
                         )
                     except Exception:
                         question_context = ""
+                    try:
+                        question_web_context = retrieve_web_context(
+                            st.session_state.get("condition", ""),
+                            chat_profile_data.get("goal", ""),
+                            user_question,
+                            "Balanced evidence",
+                        )
+                    except Exception:
+                        question_web_context = ""
                     chat_prompt = f"""
 Patient profile:
 {chat_profile}
+
+Profile tailoring requirements:
+{build_personalization_brief(chat_profile_data)}
 
 Current rehab plan:
 {st.session_state.final_plan[:3500]}
@@ -1538,14 +1689,21 @@ Internal textbook evidence used for the plan:
 Additional internal textbook evidence for this question:
 {question_context[:1800]}
 
+Current web context used for the plan:
+{stored_web_context[:1800]}
+
+Additional current web context for this question:
+{question_web_context[:1600]}
+
 Patient question:
 {user_question}
 
 Answer as an expert consultant physiotherapist. Stay within the generated plan, exercise candidates,
-and internal textbook evidence. Do not mention textbooks, source labels, retrieval, internal evidence,
-dataset, or AI process to the patient. If the question asks for something unsupported or unsafe, say so
-and give a safer alternative. Include stop rules when pain, dizziness, numbness, weakness, chest pain,
-or shortness of breath is mentioned. Do not diagnose new conditions.
+internal textbook evidence, current web context, and the full patient profile. Do not mention hidden source labels,
+retrieval mechanics, dataset, or AI process to the patient. If the question asks for something unsupported or unsafe,
+say so and give a safer alternative. Include stop rules when pain, dizziness, numbness, weakness, chest pain,
+or shortness of breath is mentioned. Do not diagnose new conditions. Explain how the answer changes because of the
+patient's pain level, onset/duration, symptoms, equipment, comorbidities, goals, and previous response when relevant.
 """
                     try:
                         answer = cached_llm_response(chat_prompt, max_tokens=950)
