@@ -351,6 +351,61 @@ st.markdown(
 
     .exercise-body ul {margin-top: 6px;}
 
+    .exercise-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+    }
+
+    .exercise-detail {
+        border: 1px solid rgba(220, 229, 242, 0.95);
+        border-radius: 18px;
+        background: #f8fafc;
+        padding: 14px;
+    }
+
+    .exercise-detail strong {
+        display: block;
+        color: #07111f;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        margin-bottom: 6px;
+    }
+
+    .exercise-detail p {
+        margin: 0;
+        color: #435269;
+    }
+
+    .exercise-steps {
+        margin: 16px 0 0;
+        padding: 16px 18px;
+        border-radius: 18px;
+        background: linear-gradient(135deg, rgba(239,246,255,0.95), rgba(236,253,245,0.9));
+        border: 1px solid rgba(220, 229, 242, 0.95);
+    }
+
+    .exercise-steps strong {
+        color: #07111f;
+    }
+
+    .exercise-steps ol {
+        margin: 8px 0 0 18px;
+        padding: 0;
+    }
+
+    .safety-note {
+        margin: 16px 0 26px;
+        padding: 18px 20px;
+        border-radius: 22px;
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        color: #7c2d12;
+        font-weight: 800;
+    }
+
     .exercise-meta {
         display: inline-block;
         margin: 4px 8px 14px 0;
@@ -402,6 +457,10 @@ st.markdown(
 
         .metric-strip {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .exercise-detail-grid {
+            grid-template-columns: 1fr;
         }
     }
 
@@ -1050,10 +1109,25 @@ with col_a:
     daily_activity = st.selectbox("**Daily Activity Level**", ["Sedentary", "Light", "Moderate", "Active"])
 
 with col_b:
-    recent_surgery = st.selectbox("Recent Surgery?", ["No", "Yes - Within 3 months", "Yes - Older"])
+    recent_surgery = st.selectbox(
+        "Surgery History?",
+        [
+            "No",
+            "Yes - Within 3 months",
+            "Yes - Older and related to this condition",
+            "Yes - Older but not related to this condition",
+        ],
+    )
     high_bp = st.selectbox("High Blood Pressure?", ["No", "Yes - Controlled", "Yes - Uncontrolled"])
     dizziness = st.selectbox("Dizziness / Balance Issues?", ["No", "Occasional", "Frequent"])
     diabetes = st.selectbox("Diabetes?", ["No", "Yes - Controlled", "Yes - Uncontrolled"])
+
+surgery_details = ""
+if recent_surgery != "No":
+    surgery_details = st.text_area(
+        "Please state the surgery that was done",
+        placeholder="e.g. ACL reconstruction in 2022, C-section in 2020, lumbar discectomy 6 years ago...",
+    )
 
 equipment = st.multiselect(
     "**Equipment Available at Home**",
@@ -1089,6 +1163,23 @@ st.markdown(
 )
 
 with st.expander("Evidence and generation options", expanded=True):
+    language_options = [
+        "English",
+        "Spanish",
+        "French",
+        "Arabic",
+        "Portuguese",
+        "Hindi",
+        "Yoruba",
+        "Igbo",
+        "Hausa",
+        "Swahili",
+        "Other",
+    ]
+    selected_language = st.selectbox("Plan language", language_options)
+    custom_language = ""
+    if selected_language == "Other":
+        custom_language = st.text_input("Type preferred language", placeholder="e.g. German, Mandarin, Turkish...")
     generation_mode = st.radio(
         "Evidence mode",
         ["Balanced evidence", "Deep evidence"],
@@ -1139,11 +1230,13 @@ def build_patient_profile():
         "other_goals": other_goals.strip() or "None provided",
         "daily_activity": daily_activity,
         "recent_surgery": recent_surgery,
+        "surgery_details": surgery_details.strip() or "None provided",
         "high_blood_pressure": high_bp,
         "dizziness_balance": dizziness,
         "diabetes": diabetes,
         "equipment": equipment or ["None"],
         "previous_exercise_response": previous_response.strip(),
+        "output_language": custom_language.strip() if selected_language == "Other" and custom_language.strip() else selected_language,
     }
 
 
@@ -1177,9 +1270,10 @@ def build_personalization_brief(profile_data):
         f"Symptoms to address directly: {profile_data['symptoms'] or 'not specified'}.",
         f"Primary goal is {profile_data['goal']}; additional goals: {profile_data['other_goals']}.",
         f"Daily activity level is {profile_data['daily_activity']}; prescribe a realistic starting volume and functional progression.",
-        f"Recent surgery status: {profile_data['recent_surgery']}; high blood pressure: {profile_data['high_blood_pressure']}; dizziness/balance: {profile_data['dizziness_balance']}; diabetes: {profile_data['diabetes']}.",
+        f"Surgery history: {profile_data['recent_surgery']} ({profile_data['surgery_details']}); high blood pressure: {profile_data['high_blood_pressure']}; dizziness/balance: {profile_data['dizziness_balance']}; diabetes: {profile_data['diabetes']}.",
         f"Available home equipment: {equipment_text}; do not prescribe equipment-dependent exercises without alternatives.",
         f"Previous exercise response: {profile_data['previous_exercise_response'] or 'none reported'}; repeat helpful strategies and avoid or regress aggravating ones.",
+        f"Write the patient-facing plan in {profile_data['output_language']}.",
         phase,
     ]
     return "\n".join(f"- {item}" for item in considerations)
@@ -1239,6 +1333,8 @@ def screen_red_flags(profile_data):
         cautions.append("Frequent dizziness or balance issues require guarded, supported exercise only.")
     if profile_data["recent_surgery"] == "Yes - Within 3 months":
         cautions.append("Recent surgery requires protocol-specific restrictions and surgeon/physiotherapist clearance.")
+    elif profile_data["recent_surgery"].startswith("Yes - Older"):
+        cautions.append("Older surgery history should be considered in exercise selection, especially if symptoms relate to the operated area.")
     if profile_data["pain_level"] >= 8:
         cautions.append("Severe pain suggests a highly irritable condition; recommendations must remain gentle.")
 
@@ -1389,9 +1485,46 @@ def format_dataset_exercises(rows):
 def unique_exercise_rows(rows, limit=4):
     if rows.empty or "exercise_name" not in rows:
         return rows.head(limit)
-    normalized_names = rows["exercise_name"].astype(str).str.strip().str.lower()
-    unique_rows = rows[~normalized_names.duplicated()].copy()
-    return unique_rows.head(limit)
+    working = rows.copy()
+    working["_normalized_exercise_name"] = (
+        working["exercise_name"]
+        .astype(str)
+        .str.replace(r"\s+", " ", regex=True)
+        .str.strip()
+        .str.lower()
+    )
+    working = working[working["_normalized_exercise_name"].ne("")]
+    if "recovery_goals" in working:
+        diverse_rows = []
+        seen_names = set()
+        seen_goals = set()
+        for _, row in working.iterrows():
+            name = row["_normalized_exercise_name"]
+            goal_name = str(row.get("recovery_goals", "")).strip().lower()
+            if name in seen_names:
+                continue
+            if goal_name and goal_name in seen_goals and len(diverse_rows) < limit:
+                continue
+            diverse_rows.append(row)
+            seen_names.add(name)
+            if goal_name:
+                seen_goals.add(goal_name)
+            if len(diverse_rows) >= limit:
+                break
+        if len(diverse_rows) < limit:
+            for _, row in working.iterrows():
+                name = row["_normalized_exercise_name"]
+                if name in seen_names:
+                    continue
+                diverse_rows.append(row)
+                seen_names.add(name)
+                if len(diverse_rows) >= limit:
+                    break
+        if diverse_rows:
+            return pd.DataFrame(diverse_rows).drop(columns=["_normalized_exercise_name"], errors="ignore")
+
+    unique_rows = working[~working["_normalized_exercise_name"].duplicated()].copy()
+    return unique_rows.drop(columns=["_normalized_exercise_name"], errors="ignore").head(limit)
 
 
 def append_physio_followup(plan_text):
@@ -1399,6 +1532,7 @@ def append_physio_followup(plan_text):
 
 Physiotherapist Follow-Up:
 - This plan is educational support only and should not replace assessment by a qualified physiotherapist.
+- Before you commence these exercises, speak to a physiotherapist to confirm they are safe for your condition, surgery history, symptoms, and current pain level.
 - Please visit a physiotherapist for an individualized examination, especially if pain persists, worsens, spreads, or affects walking, sleep, work, or daily function.
 - If you want guided care, you can contact the therapist below for review, progression, and safer exercise modification.
 """
@@ -1529,6 +1663,7 @@ def build_fallback_plan(profile_data, rows, cautions, reason=None):
             "Seek medical care for severe or worsening symptoms, neurological signs, chest pain, shortness of breath, unexplained swelling, fever, or if you are unsure whether exercise is safe.",
             "\nPhysiotherapist Follow-Up:",
             "- This plan is educational support only and should not replace assessment by a qualified physiotherapist.",
+            "- Before you commence these exercises, speak to a physiotherapist to confirm they are safe for your condition, surgery history, symptoms, and current pain level.",
             "- Please visit a physiotherapist for an individualized examination, especially if pain persists, worsens, spreads, or affects walking, sleep, work, or daily function.",
             "- If you want guided care, you can contact the therapist below for review, progression, and safer exercise modification.",
         ]
@@ -1570,6 +1705,8 @@ def make_pdf_bytes(condition_text, plan_text, profile_data):
     pdf.cell(0, 7, f"Condition: {safe_condition}", ln=True)
     pdf.cell(0, 7, f"Age: {profile_data['age']} | Gender: {profile_data['gender']} | Pain: {profile_data['pain_level']}/10", ln=True)
     pdf.cell(0, 7, f"Goal: {profile_data['goal']} | Onset: {profile_data['time_since_injury']}", ln=True)
+    surgery_text = unicodedata.normalize("NFKD", f"{profile_data.get('recent_surgery', 'No')} - {profile_data.get('surgery_details', 'None provided')}").encode("latin-1", "ignore").decode("latin-1")
+    pdf.multi_cell(0, 7, f"Surgery history: {surgery_text}")
     if profile_data.get("other_goals") and profile_data["other_goals"] != "None provided":
         other_goals_text = unicodedata.normalize("NFKD", profile_data["other_goals"]).encode("latin-1", "ignore").decode("latin-1")
         pdf.multi_cell(0, 7, f"Other goals: {other_goals_text}")
@@ -1656,6 +1793,66 @@ def extract_section(plan_text, section_name):
     return match.group(1).strip() if match else ""
 
 
+def parse_card_details(lines):
+    details = {}
+    current_key = None
+    step_lines = []
+    for raw_line in lines:
+        stripped = raw_line.strip()
+        cleaned = re.sub(r"^\s*[-*]\s*", "", stripped)
+        field_match = re.match(r"^(Purpose|Dosage|Frequency|Progress when|Stop or modify if|Video|Equipment|Clinical rationale|Avoid or get clinician review if present|Stop criteria|Regression|Watch for|Evidence level|Progression):\s*(.*)$", cleaned, re.I)
+        if field_match:
+            key = field_match.group(1).strip().lower()
+            value = field_match.group(2).strip()
+            if key == "progression":
+                key = "progress when"
+            current_key = key
+            details[key] = value
+            continue
+
+        how_match = re.match(r"^How to do it:\s*(.*)$", cleaned, re.I)
+        if how_match:
+            current_key = "how"
+            if how_match.group(1).strip():
+                step_lines.append(how_match.group(1).strip())
+            continue
+
+        step_match = re.match(r"^(Step\s*\d+|Set up|Movement):\s*(.*)$", cleaned, re.I)
+        if step_match:
+            step_value = step_match.group(2).strip()
+            if step_value:
+                step_lines.append(step_value)
+            continue
+
+        if current_key == "how" and cleaned:
+            step_lines.append(cleaned)
+        elif current_key and cleaned:
+            details[current_key] = f"{details.get(current_key, '').strip()} {cleaned}".strip()
+
+    if step_lines:
+        deduped_steps = []
+        seen_steps = set()
+        for step in step_lines:
+            key = step.lower()
+            if key in seen_steps:
+                continue
+            seen_steps.add(key)
+            deduped_steps.append(step)
+        details["how"] = deduped_steps
+    return details
+
+
+def render_detail(label, value):
+    if not value:
+        return ""
+    return f"""
+<div class="exercise-detail">
+    <strong>{escape(label)}</strong>
+    <p>{escape(str(value))}</p>
+</div>
+"""
+
+
 def render_exercise_cards(plan_text, video_lookup, condition_text):
     cards = parse_exercise_cards(plan_text)
     if not cards:
@@ -1663,13 +1860,38 @@ def render_exercise_cards(plan_text, video_lookup, condition_text):
         return
 
     st.subheader("Exercise Prescription")
+    st.markdown(
+        """
+<div class="safety-note">
+Before you commence these exercises, please speak to a qualified physiotherapist for assessment and confirmation that the plan is safe for your condition.
+</div>
+""",
+        unsafe_allow_html=True,
+    )
     for card in cards:
         title = card["title"]
         video_url = get_video_url(title, video_lookup, condition_text)
         image_query = quote_plus(f"physiotherapy exercise {title}")
         image_url = f"https://source.unsplash.com/900x420/?{image_query}"
-        body = "\n".join(card["lines"])
-        body_html = escape(body).replace("\n", "<br>")
+        details = parse_card_details(card["lines"])
+        steps = details.get("how", [])
+        steps_html = "".join(f"<li>{escape(step)}</li>" for step in steps) or "<li>Move slowly, stay within a comfortable range, and return to the start position with control.</li>"
+        detail_grid = "".join(
+            [
+                render_detail("Purpose", details.get("purpose")),
+                render_detail("Dosage", details.get("dosage")),
+                render_detail("Frequency", details.get("frequency")),
+                render_detail("Progress when", details.get("progress when")),
+                render_detail("Stop or modify if", details.get("stop or modify if")),
+                render_detail("Equipment", details.get("equipment")),
+                render_detail("Clinical rationale", details.get("clinical rationale")),
+                render_detail("Avoid or review if", details.get("avoid or get clinician review if present")),
+                render_detail("Stop criteria", details.get("stop criteria")),
+                render_detail("Regression", details.get("regression")),
+                render_detail("Watch for", details.get("watch for")),
+                render_detail("Evidence level", details.get("evidence level")),
+            ]
+        )
         st.markdown(
             f"""
 <div class="exercise-card">
@@ -1679,7 +1901,11 @@ def render_exercise_cards(plan_text, video_lookup, condition_text):
     <div class="exercise-body">
         <span class="exercise-meta">Home exercise</span>
         <span class="exercise-meta">Personalized</span>
-        <div>{body_html}</div>
+        <div class="exercise-steps">
+            <strong>How to do it</strong>
+            <ol>{steps_html}</ol>
+        </div>
+        <div class="exercise-detail-grid">{detail_grid}</div>
         <a class="video-link" href="{escape(video_url)}" target="_blank" rel="noopener noreferrer">Watch video guide</a>
     </div>
 </div>
@@ -1702,7 +1928,7 @@ def render_exercise_cards(plan_text, video_lookup, condition_text):
 
 
 # ====================== CLINICAL VETTING ENGINE ======================
-def clinical_vet(profile, personalization_brief, dataset_ex, textbook_context, web_context, cautions, mode):
+def clinical_vet(profile, personalization_brief, dataset_ex, textbook_context, web_context, cautions, mode, output_language="English"):
     if mode == "Deep evidence":
         mode_instruction = """
 Mode: Deep evidence.
@@ -1724,6 +1950,8 @@ You are an expert consultant physiotherapist writing a personalized home-exercis
 Speak directly to the patient as "you" and "your".
 This is an educational home-exercise support tool, not a diagnosis or a replacement for in-person care.
 Use expert clinical judgment: be specific, confident, and practical, while escalating unsafe or unclear presentations to medical/physiotherapy review.
+Write the patient-facing explanations in this language: {output_language}.
+Keep structural section headings and field labels exactly as written in the Output Format so the app can render the cards correctly.
 
 {mode_instruction}
 
@@ -1746,11 +1974,13 @@ ADDITIONAL SAFETY CAUTIONS:
 {chr(10).join(f"- {item}" for item in cautions) if cautions else "- None reported."}
 
 Rules:
-- Use every patient profile item when tailoring the prescription: age, gender, BMI, condition, duration, onset stage, pain level, symptoms, main goal, other goals, activity level, surgery history, blood pressure, dizziness/balance, diabetes, equipment, and previous exercise response.
+- Use every patient profile item when tailoring the prescription: age, gender, BMI, condition, duration, onset stage, pain level, symptoms, main goal, other goals, activity level, surgery history and surgery details, blood pressure, dizziness/balance, diabetes, equipment, previous exercise response, and output language.
+- Synthesis order: first screen patient safety/history, then use the structured dataset candidate exercises, then refine with internal textbook evidence, then add current web context only where relevant, then act as a consultant physiotherapist and select the safest top 4 exercises.
 - The Consultant Summary must explicitly mention the most important profile factors that changed the plan.
 - Prefer structured dataset exercises when they match the condition and profile.
-- The Exercise Prescription must contain four different exercise names when four safe candidate exercises are available.
+- The Exercise Prescription must contain exactly four different exercise names when four safe candidate exercises are available.
 - Never repeat the same exercise name, even if the dataset candidate appears more than once.
+- If fewer than four exercises are safe, explain why and recommend only the safe number.
 - Use textbook context to refine exercise choice, dosage, precautions, and progression whenever it is relevant to the submitted condition or related body region.
 - If textbook context is not condition-specific enough, say the prescription is based on the patient's profile, dataset match, safety rules, and general physiotherapy principles. Do not invent textbook support.
 - Use current web context only for up-to-date supporting guidance, precautions, and terminology. Do not let web snippets override red flags, contraindications, textbook context, dataset contraindications, or patient-specific safety constraints.
@@ -1763,6 +1993,8 @@ Rules:
 - Each exercise must have the exact sub-bullets shown below.
 - Each exercise must include a Video line. If a dataset video_url is available, use it. If not, write "Video: Provided in the exercise card".
 - Add a "Why This Fits Your Profile" section after Consultant Summary. It must include at least 6 bullets covering pain level, onset/duration, symptoms, goals, activity level, equipment, comorbidities/safety, and previous exercise response.
+- Before the exercise list, strongly advise the patient to speak to a qualified physiotherapist before commencing the exercises.
+- Do not translate structural labels, proper names, email addresses, URLs, or credentials.
 
 Output Format:
 Consultant Summary:
@@ -1797,6 +2029,7 @@ When To Seek Medical Care:
 - Bullet points only.
 
 Physiotherapist Follow-Up:
+- Tell the patient to speak to a qualified physiotherapist before commencing the exercises.
 - Advise the patient to visit a qualified physiotherapist for individualized assessment and safe progression.
 - Add that if they want guided care, they can contact the therapist below for review, progression, and exercise modification.
 """
@@ -1835,7 +2068,7 @@ if st.button("Generate Personalized Plan", type="primary", use_container_width=T
                 candidate_rows = matched_rows
             else:
                 candidate_rows = rank_dataset_candidates(matched_rows, profile_data, limit=candidate_limit)
-                candidate_rows = unique_exercise_rows(candidate_rows, limit=4)
+                candidate_rows = unique_exercise_rows(candidate_rows, limit=10)
 
             combined_goals = f"{goal}. {other_goals.strip()}" if other_goals.strip() else goal
             rag_query = build_rag_query(condition, combined_goals, specific_symptoms)
@@ -1871,6 +2104,7 @@ if st.button("Generate Personalized Plan", type="primary", use_container_width=T
                     web_context,
                     safety_cautions,
                     generation_mode,
+                    profile_data["output_language"],
                 )
                 final_plan = append_physio_followup(final_plan)
             except Exception as llm_error:
