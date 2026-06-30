@@ -1,0 +1,241 @@
+condition_id,name,category,body_region,stage_bias,min_age,max_age,postop_rate,expected_recovery_weeks_min,expected_recovery_weeks_max
+COND0001,Knee Osteoarthritis,orthopaedic,knee,acute; subacute; chronic,35,95,0.02,8,24
+COND0002,Hip Osteoarthritis,orthopaedic,hip,acute; subacute; chronic,40,95,0.03,8,24
+COND0003,Rheumatoid Arthritis,orthopaedic,multiple joints,acute; subacute; chronic,18,90,0.01,8,32
+COND0004,ACL Injury,sports,knee,acute; subacute; chronic,12,55,0.45,12,40
+COND0005,PCL Injury,sports,knee,acute; subacute; chronic,14,60,0.25,10,32
+COND0006,Meniscus Injury,orthopaedic,knee,acute; subacute; chronic,14,80,0.18,6,20
+COND0007,Patellofemoral Pain Syndrome,sports,knee,acute; subacute; chronic,12,55,0.01,6,16
+COND0008,Total Knee Replacement,post-operative,knee,post-operative acute; post-operative subacute; return to function,45,95,1.0,8,20
+COND0009,Total Hip Replacement,post-operative,hip,post-operative acute; post-operative subacute; return to function,45,95,1.0,8,20
+COND0010,Rotator Cuff Tear,orthopaedic,shoulder,acute; subacute; chronic,25,90,0.2,8,28
+COND0011,Frozen Shoulder,orthopaedic,shoulder,acute; subacute; chronic,35,80,0.01,16,52
+COND0012,Shoulder Impingement,orthopaedic,shoulder,acute; subacute; chronic,16,80,0.02,6,16
+COND0013,Tennis Elbow,orthopaedic,elbow/wrist/hand,acute; subacute; chronic,18,75,0.0,6,18
+COND0014,Golfer's Elbow,orthopaedic,elbow/wrist/hand,acute; subacute; chronic,18,75,0.0,6,18
+COND0015,Carpal Tunnel Syndrome,orthopaedic,elbow/wrist/hand,acute; subacute; chronic,18,80,0.08,6,16
+COND0016,Cervical Radiculopathy,orthopaedic,spine,acute; subacute; chronic,18,85,0.03,6,18
+COND0017,Lumbar Radiculopathy,orthopaedic,spine,acute; subacute; chronic,18,90,0.04,6,20
+COND0018,Mechanical Low Back Pain,orthopaedic,spine,acute; subacute; chronic,16,85,0.0,4,12
+COND0019,Lumbar Disc Herniation,orthopaedic,spine,acute; subacute; chronic,18,75,0.05,6,24
+COND0020,Spinal Stenosis,orthopaedic,spine,acute; subacute; chronic,45,95,0.08,8,28
+COND0021,Ankle Sprain,sports,ankle/foot,acute; subacute; chronic,10,75,0.01,3,10
+COND0022,Achilles Tendinopathy,sports,ankle/foot,acute; subacute; chronic,16,75,0.01,8,24
+COND0023,Plantar Fasciitis,orthopaedic,ankle/foot,acute; subacute; chronic,18,85,0.0,6,18
+COND0024,Stroke,neurological,neurological,acute; subacute; chronic,18,98,0.0,12,52
+COND0025,Parkinson Disease,neurological,neurological,acute; subacute; chronic,40,95,0.0,12,52
+COND0026,Multiple Sclerosis,neurological,neurological,acute; subacute; chronic,18,75,0.0,8,40
+COND0027,Spinal Cord Injury,neurological,neurological,acute; subacute; chronic,12,90,0.0,16,78
+COND0028,Traumatic Brain Injury,neurological,neurological,acute; subacute; chronic,5,90,0.0,12,52
+COND0029,Bell's Palsy,neurological,neurological,acute; subacute; chronic,10,85,0.0,4,16
+COND0030,Peripheral Neuropathy,neurological,neurological,acute; subacute; chronic,18,95,0.0,8,32
+COND0031,COPD,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,35,95,0.0,8,24
+COND0032,Asthma,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,5,85,0.0,4,16
+COND0033,Bronchitis,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,12,90,0.0,2,8
+COND0034,Pneumonia,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,5,95,0.0,4,12
+COND0035,Long COVID,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,12,90,0.0,8,32
+COND0036,Heart Failure,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,40,95,0.0,8,24
+COND0037,Myocardial Infarction Rehabilitation,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,30,95,0.0,8,20
+COND0038,Obesity Rehabilitation,geriatric,geriatric,acute; subacute; chronic,10,95,0.0,12,52
+COND0039,Fibromyalgia,chronic pain,multiple regions,acute; subacute; chronic,18,85,0.0,12,52
+COND0040,Chronic Fatigue Syndrome,chronic pain,multiple regions,acute; subacute; chronic,12,85,0.0,12,52
+COND0041,Urinary Incontinence,women's health,pelvic health,acute; subacute; chronic,18,95,0.02,8,24
+COND0042,Pelvic Organ Prolapse,women's health,pelvic health,acute; subacute; chronic,25,90,0.08,8,24
+COND0043,Pregnancy-related Pelvic Girdle Pain,women's health,pelvic health,acute; subacute; chronic,18,50,0.0,6,18
+COND0044,Developmental Coordination Disorder,paediatric,paediatric,acute; subacute; chronic,4,17,0.0,12,52
+COND0045,Cerebral Palsy,paediatric,paediatric,acute; subacute; chronic,2,30,0.0,16,78
+COND0046,Burn Scar Contracture,burns,burns,acute; subacute; chronic,2,90,0.2,12,52
+COND0047,Lower Limb Amputation,amputee,amputee,acute; subacute; chronic,10,95,0.65,12,52
+COND0048,Post-ICU Weakness,ICU,cardiorespiratory,post-critical acute; post-critical subacute; community reintegration,18,95,0.0,8,40
+COND0049,Benign Paroxysmal Positional Vertigo,vestibular,vestibular,acute; subacute; chronic,18,95,0.0,1,6
+COND0050,Vestibular Hypofunction,vestibular,vestibular,acute; subacute; chronic,18,95,0.0,4,16
+COND0051,Falls Risk / Frailty,balance and falls,geriatric,acute; subacute; chronic,60,99,0.0,8,32
+COND0052,Work-related Neck Pain,occupational,spine,acute; subacute; chronic,18,75,0.0,4,12
+COND0053,Work-related Low Back Pain,occupational,spine,acute; subacute; chronic,18,75,0.0,4,12
+COND0054,Mild Hip Fracture Rehabilitation,post-operative,hip,post-operative acute; post-operative subacute; return to function,18,88,0.55,4,12
+COND0055,Moderate Hip Fracture Rehabilitation,post-operative,hip,post-operative acute; post-operative subacute; return to function,18,88,0.55,8,24
+COND0056,Complex Hip Fracture Rehabilitation,post-operative,hip,post-operative acute; post-operative subacute; return to function,18,88,0.55,12,52
+COND0057,Mild Knee Fracture Rehabilitation,post-operative,knee,post-operative acute; post-operative subacute; return to function,18,88,0.55,4,12
+COND0058,Moderate Knee Fracture Rehabilitation,post-operative,knee,post-operative acute; post-operative subacute; return to function,18,88,0.55,8,24
+COND0059,Complex Knee Fracture Rehabilitation,post-operative,knee,post-operative acute; post-operative subacute; return to function,18,88,0.55,12,52
+COND0060,Mild Shoulder Fracture Rehabilitation,post-operative,shoulder,post-operative acute; post-operative subacute; return to function,18,88,0.55,4,12
+COND0061,Moderate Shoulder Fracture Rehabilitation,post-operative,shoulder,post-operative acute; post-operative subacute; return to function,18,88,0.55,8,24
+COND0062,Complex Shoulder Fracture Rehabilitation,post-operative,shoulder,post-operative acute; post-operative subacute; return to function,18,88,0.55,12,52
+COND0063,Mild Ankle/Foot Fracture Rehabilitation,post-operative,ankle/foot,post-operative acute; post-operative subacute; return to function,18,88,0.55,4,12
+COND0064,Moderate Ankle/Foot Fracture Rehabilitation,post-operative,ankle/foot,post-operative acute; post-operative subacute; return to function,18,88,0.55,8,24
+COND0065,Complex Ankle/Foot Fracture Rehabilitation,post-operative,ankle/foot,post-operative acute; post-operative subacute; return to function,18,88,0.55,12,52
+COND0066,Mild Elbow/Wrist/Hand Fracture Rehabilitation,post-operative,elbow/wrist/hand,post-operative acute; post-operative subacute; return to function,18,88,0.55,4,12
+COND0067,Moderate Elbow/Wrist/Hand Fracture Rehabilitation,post-operative,elbow/wrist/hand,post-operative acute; post-operative subacute; return to function,18,88,0.55,8,24
+COND0068,Complex Elbow/Wrist/Hand Fracture Rehabilitation,post-operative,elbow/wrist/hand,post-operative acute; post-operative subacute; return to function,18,88,0.55,12,52
+COND0069,Mild Shoulder Tendinopathy,sports,shoulder,acute; subacute; chronic,18,88,0.0,4,12
+COND0070,Moderate Shoulder Tendinopathy,sports,shoulder,acute; subacute; chronic,18,88,0.0,8,24
+COND0071,Complex Shoulder Tendinopathy,sports,shoulder,acute; subacute; chronic,18,88,0.0,12,52
+COND0072,Mild Knee Tendinopathy,sports,knee,acute; subacute; chronic,18,88,0.0,4,12
+COND0073,Moderate Knee Tendinopathy,sports,knee,acute; subacute; chronic,18,88,0.0,8,24
+COND0074,Complex Knee Tendinopathy,sports,knee,acute; subacute; chronic,18,88,0.0,12,52
+COND0075,Mild Hip Tendinopathy,sports,hip,acute; subacute; chronic,18,88,0.0,4,12
+COND0076,Moderate Hip Tendinopathy,sports,hip,acute; subacute; chronic,18,88,0.0,8,24
+COND0077,Complex Hip Tendinopathy,sports,hip,acute; subacute; chronic,18,88,0.0,12,52
+COND0078,Mild Ankle/Foot Tendinopathy,sports,ankle/foot,acute; subacute; chronic,18,88,0.0,4,12
+COND0079,Moderate Ankle/Foot Tendinopathy,sports,ankle/foot,acute; subacute; chronic,18,88,0.0,8,24
+COND0080,Complex Ankle/Foot Tendinopathy,sports,ankle/foot,acute; subacute; chronic,18,88,0.0,12,52
+COND0081,Mild Elbow/Wrist/Hand Tendinopathy,sports,elbow/wrist/hand,acute; subacute; chronic,18,88,0.0,4,12
+COND0082,Moderate Elbow/Wrist/Hand Tendinopathy,sports,elbow/wrist/hand,acute; subacute; chronic,18,88,0.0,8,24
+COND0083,Complex Elbow/Wrist/Hand Tendinopathy,sports,elbow/wrist/hand,acute; subacute; chronic,18,88,0.0,12,52
+COND0084,Mild Shoulder Post-surgical Repair,post-operative,shoulder,post-operative acute; post-operative subacute; return to function,18,88,0.55,4,12
+COND0085,Moderate Shoulder Post-surgical Repair,post-operative,shoulder,post-operative acute; post-operative subacute; return to function,18,88,0.55,8,24
+COND0086,Complex Shoulder Post-surgical Repair,post-operative,shoulder,post-operative acute; post-operative subacute; return to function,18,88,0.55,12,52
+COND0087,Mild Knee Post-surgical Repair,post-operative,knee,post-operative acute; post-operative subacute; return to function,18,88,0.55,4,12
+COND0088,Moderate Knee Post-surgical Repair,post-operative,knee,post-operative acute; post-operative subacute; return to function,18,88,0.55,8,24
+COND0089,Complex Knee Post-surgical Repair,post-operative,knee,post-operative acute; post-operative subacute; return to function,18,88,0.55,12,52
+COND0090,Mild Hip Post-surgical Repair,post-operative,hip,post-operative acute; post-operative subacute; return to function,18,88,0.55,4,12
+COND0091,Moderate Hip Post-surgical Repair,post-operative,hip,post-operative acute; post-operative subacute; return to function,18,88,0.55,8,24
+COND0092,Complex Hip Post-surgical Repair,post-operative,hip,post-operative acute; post-operative subacute; return to function,18,88,0.55,12,52
+COND0093,Mild Ankle/Foot Post-surgical Repair,post-operative,ankle/foot,post-operative acute; post-operative subacute; return to function,18,88,0.55,4,12
+COND0094,Moderate Ankle/Foot Post-surgical Repair,post-operative,ankle/foot,post-operative acute; post-operative subacute; return to function,18,88,0.55,8,24
+COND0095,Complex Ankle/Foot Post-surgical Repair,post-operative,ankle/foot,post-operative acute; post-operative subacute; return to function,18,88,0.55,12,52
+COND0096,Mild Spine Post-surgical Repair,post-operative,spine,post-operative acute; post-operative subacute; return to function,18,88,0.55,4,12
+COND0097,Moderate Spine Post-surgical Repair,post-operative,spine,post-operative acute; post-operative subacute; return to function,18,88,0.55,8,24
+COND0098,Complex Spine Post-surgical Repair,post-operative,spine,post-operative acute; post-operative subacute; return to function,18,88,0.55,12,52
+COND0099,Mild Knee Overuse Syndrome,sports,knee,acute; subacute; chronic,18,88,0.0,4,12
+COND0100,Moderate Knee Overuse Syndrome,sports,knee,acute; subacute; chronic,18,88,0.0,8,24
+COND0101,Complex Knee Overuse Syndrome,sports,knee,acute; subacute; chronic,18,88,0.0,12,52
+COND0102,Mild Shoulder Overuse Syndrome,sports,shoulder,acute; subacute; chronic,18,88,0.0,4,12
+COND0103,Moderate Shoulder Overuse Syndrome,sports,shoulder,acute; subacute; chronic,18,88,0.0,8,24
+COND0104,Complex Shoulder Overuse Syndrome,sports,shoulder,acute; subacute; chronic,18,88,0.0,12,52
+COND0105,Mild Ankle/Foot Overuse Syndrome,sports,ankle/foot,acute; subacute; chronic,18,88,0.0,4,12
+COND0106,Moderate Ankle/Foot Overuse Syndrome,sports,ankle/foot,acute; subacute; chronic,18,88,0.0,8,24
+COND0107,Complex Ankle/Foot Overuse Syndrome,sports,ankle/foot,acute; subacute; chronic,18,88,0.0,12,52
+COND0108,Mild Spine Overuse Syndrome,sports,spine,acute; subacute; chronic,18,88,0.0,4,12
+COND0109,Moderate Spine Overuse Syndrome,sports,spine,acute; subacute; chronic,18,88,0.0,8,24
+COND0110,Complex Spine Overuse Syndrome,sports,spine,acute; subacute; chronic,18,88,0.0,12,52
+COND0111,Mild Elbow/Wrist/Hand Overuse Syndrome,sports,elbow/wrist/hand,acute; subacute; chronic,18,88,0.0,4,12
+COND0112,Moderate Elbow/Wrist/Hand Overuse Syndrome,sports,elbow/wrist/hand,acute; subacute; chronic,18,88,0.0,8,24
+COND0113,Complex Elbow/Wrist/Hand Overuse Syndrome,sports,elbow/wrist/hand,acute; subacute; chronic,18,88,0.0,12,52
+COND0114,Mild Knee Arthroplasty Revision,post-operative,knee,post-operative acute; post-operative subacute; return to function,18,88,0.55,4,12
+COND0115,Moderate Knee Arthroplasty Revision,post-operative,knee,post-operative acute; post-operative subacute; return to function,18,88,0.55,8,24
+COND0116,Complex Knee Arthroplasty Revision,post-operative,knee,post-operative acute; post-operative subacute; return to function,18,88,0.55,12,52
+COND0117,Mild Hip Arthroplasty Revision,post-operative,hip,post-operative acute; post-operative subacute; return to function,18,88,0.55,4,12
+COND0118,Moderate Hip Arthroplasty Revision,post-operative,hip,post-operative acute; post-operative subacute; return to function,18,88,0.55,8,24
+COND0119,Complex Hip Arthroplasty Revision,post-operative,hip,post-operative acute; post-operative subacute; return to function,18,88,0.55,12,52
+COND0120,Mild Shoulder Arthroplasty Revision,post-operative,shoulder,post-operative acute; post-operative subacute; return to function,18,88,0.55,4,12
+COND0121,Moderate Shoulder Arthroplasty Revision,post-operative,shoulder,post-operative acute; post-operative subacute; return to function,18,88,0.55,8,24
+COND0122,Complex Shoulder Arthroplasty Revision,post-operative,shoulder,post-operative acute; post-operative subacute; return to function,18,88,0.55,12,52
+COND0123,Mild Neurological Neuromuscular Weakness,neurological,neurological,acute; subacute; chronic,18,88,0.0,4,12
+COND0124,Moderate Neurological Neuromuscular Weakness,neurological,neurological,acute; subacute; chronic,18,88,0.0,8,24
+COND0125,Complex Neurological Neuromuscular Weakness,neurological,neurological,acute; subacute; chronic,18,88,0.0,12,52
+COND0126,Mild Paediatric Neuromuscular Weakness,neurological,paediatric,acute; subacute; chronic,2,17,0.0,4,12
+COND0127,Moderate Paediatric Neuromuscular Weakness,neurological,paediatric,acute; subacute; chronic,2,17,0.0,8,24
+COND0128,Complex Paediatric Neuromuscular Weakness,neurological,paediatric,acute; subacute; chronic,2,17,0.0,12,52
+COND0129,Mild Geriatric Neuromuscular Weakness,neurological,geriatric,acute; subacute; chronic,60,99,0.0,4,12
+COND0130,Moderate Geriatric Neuromuscular Weakness,neurological,geriatric,acute; subacute; chronic,60,99,0.0,8,24
+COND0131,Complex Geriatric Neuromuscular Weakness,neurological,geriatric,acute; subacute; chronic,60,99,0.0,12,52
+COND0132,Mild Cardiorespiratory Cardiac Deconditioning,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,18,88,0.0,4,12
+COND0133,Moderate Cardiorespiratory Cardiac Deconditioning,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,18,88,0.0,8,24
+COND0134,Complex Cardiorespiratory Cardiac Deconditioning,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,18,88,0.0,12,52
+COND0135,Mild Cardiorespiratory Pulmonary Deconditioning,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,18,88,0.0,4,12
+COND0136,Moderate Cardiorespiratory Pulmonary Deconditioning,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,18,88,0.0,8,24
+COND0137,Complex Cardiorespiratory Pulmonary Deconditioning,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,18,88,0.0,12,52
+COND0138,Mild Spine Chronic Regional Pain,chronic pain,spine,acute; subacute; chronic,18,88,0.0,4,12
+COND0139,Moderate Spine Chronic Regional Pain,chronic pain,spine,acute; subacute; chronic,18,88,0.0,8,24
+COND0140,Complex Spine Chronic Regional Pain,chronic pain,spine,acute; subacute; chronic,18,88,0.0,12,52
+COND0141,Mild Shoulder Chronic Regional Pain,chronic pain,shoulder,acute; subacute; chronic,18,88,0.0,4,12
+COND0142,Moderate Shoulder Chronic Regional Pain,chronic pain,shoulder,acute; subacute; chronic,18,88,0.0,8,24
+COND0143,Complex Shoulder Chronic Regional Pain,chronic pain,shoulder,acute; subacute; chronic,18,88,0.0,12,52
+COND0144,Mild Knee Chronic Regional Pain,chronic pain,knee,acute; subacute; chronic,18,88,0.0,4,12
+COND0145,Moderate Knee Chronic Regional Pain,chronic pain,knee,acute; subacute; chronic,18,88,0.0,8,24
+COND0146,Complex Knee Chronic Regional Pain,chronic pain,knee,acute; subacute; chronic,18,88,0.0,12,52
+COND0147,Mild Hip Chronic Regional Pain,chronic pain,hip,acute; subacute; chronic,18,88,0.0,4,12
+COND0148,Moderate Hip Chronic Regional Pain,chronic pain,hip,acute; subacute; chronic,18,88,0.0,8,24
+COND0149,Complex Hip Chronic Regional Pain,chronic pain,hip,acute; subacute; chronic,18,88,0.0,12,52
+COND0150,Mild Ankle/Foot Chronic Regional Pain,chronic pain,ankle/foot,acute; subacute; chronic,18,88,0.0,4,12
+COND0151,Moderate Ankle/Foot Chronic Regional Pain,chronic pain,ankle/foot,acute; subacute; chronic,18,88,0.0,8,24
+COND0152,Complex Ankle/Foot Chronic Regional Pain,chronic pain,ankle/foot,acute; subacute; chronic,18,88,0.0,12,52
+COND0153,Mild Spine Postural Dysfunction,occupational,spine,acute; subacute; chronic,18,88,0.0,4,12
+COND0154,Moderate Spine Postural Dysfunction,occupational,spine,acute; subacute; chronic,18,88,0.0,8,24
+COND0155,Complex Spine Postural Dysfunction,occupational,spine,acute; subacute; chronic,18,88,0.0,12,52
+COND0156,Mild Shoulder Postural Dysfunction,occupational,shoulder,acute; subacute; chronic,18,88,0.0,4,12
+COND0157,Moderate Shoulder Postural Dysfunction,occupational,shoulder,acute; subacute; chronic,18,88,0.0,8,24
+COND0158,Complex Shoulder Postural Dysfunction,occupational,shoulder,acute; subacute; chronic,18,88,0.0,12,52
+COND0159,Mild Geriatric Balance Impairment,balance and falls,geriatric,acute; subacute; chronic,60,99,0.0,4,12
+COND0160,Moderate Geriatric Balance Impairment,balance and falls,geriatric,acute; subacute; chronic,60,99,0.0,8,24
+COND0161,Complex Geriatric Balance Impairment,balance and falls,geriatric,acute; subacute; chronic,60,99,0.0,12,52
+COND0162,Mild Neurological Balance Impairment,balance and falls,neurological,acute; subacute; chronic,18,88,0.0,4,12
+COND0163,Moderate Neurological Balance Impairment,balance and falls,neurological,acute; subacute; chronic,18,88,0.0,8,24
+COND0164,Complex Neurological Balance Impairment,balance and falls,neurological,acute; subacute; chronic,18,88,0.0,12,52
+COND0165,Mild Vestibular Balance Impairment,balance and falls,vestibular,acute; subacute; chronic,18,88,0.0,4,12
+COND0166,Moderate Vestibular Balance Impairment,balance and falls,vestibular,acute; subacute; chronic,18,88,0.0,8,24
+COND0167,Complex Vestibular Balance Impairment,balance and falls,vestibular,acute; subacute; chronic,18,88,0.0,12,52
+COND0168,Mild Burns Post-burn Mobility Limitation,burns,burns,acute; subacute; chronic,18,88,0.15,4,12
+COND0169,Moderate Burns Post-burn Mobility Limitation,burns,burns,acute; subacute; chronic,18,88,0.15,8,24
+COND0170,Complex Burns Post-burn Mobility Limitation,burns,burns,acute; subacute; chronic,18,88,0.15,12,52
+COND0171,Mild Shoulder Post-burn Mobility Limitation,burns,shoulder,acute; subacute; chronic,18,88,0.15,4,12
+COND0172,Moderate Shoulder Post-burn Mobility Limitation,burns,shoulder,acute; subacute; chronic,18,88,0.15,8,24
+COND0173,Complex Shoulder Post-burn Mobility Limitation,burns,shoulder,acute; subacute; chronic,18,88,0.15,12,52
+COND0174,Mild Elbow/Wrist/Hand Post-burn Mobility Limitation,burns,elbow/wrist/hand,acute; subacute; chronic,18,88,0.15,4,12
+COND0175,Moderate Elbow/Wrist/Hand Post-burn Mobility Limitation,burns,elbow/wrist/hand,acute; subacute; chronic,18,88,0.15,8,24
+COND0176,Complex Elbow/Wrist/Hand Post-burn Mobility Limitation,burns,elbow/wrist/hand,acute; subacute; chronic,18,88,0.15,12,52
+COND0177,Mild Ankle/Foot Post-burn Mobility Limitation,burns,ankle/foot,acute; subacute; chronic,18,88,0.15,4,12
+COND0178,Moderate Ankle/Foot Post-burn Mobility Limitation,burns,ankle/foot,acute; subacute; chronic,18,88,0.15,8,24
+COND0179,Complex Ankle/Foot Post-burn Mobility Limitation,burns,ankle/foot,acute; subacute; chronic,18,88,0.15,12,52
+COND0180,Mild Amputee Prosthetic Training Need,amputee,amputee,acute; subacute; chronic,18,88,0.0,4,12
+COND0181,Moderate Amputee Prosthetic Training Need,amputee,amputee,acute; subacute; chronic,18,88,0.0,8,24
+COND0182,Complex Amputee Prosthetic Training Need,amputee,amputee,acute; subacute; chronic,18,88,0.0,12,52
+COND0183,Knee Chondral Lesion Rehabilitation,orthopaedic,knee,acute; subacute; chronic,18,88,0.03,6,28
+COND0184,Greater Trochanteric Pain Syndrome,orthopaedic,hip,acute; subacute; chronic,18,88,0.03,6,28
+COND0185,Acromioclavicular Joint Sprain,orthopaedic,shoulder,acute; subacute; chronic,18,88,0.03,6,28
+COND0186,Spondylolisthesis Rehabilitation,orthopaedic,spine,acute; subacute; chronic,18,88,0.03,6,28
+COND0187,Tarsal Tunnel Syndrome,orthopaedic,ankle/foot,acute; subacute; chronic,18,88,0.03,6,28
+COND0188,De Quervain Tenosynovitis,orthopaedic,elbow/wrist/hand,acute; subacute; chronic,18,88,0.03,6,28
+COND0189,Iliotibial Band Pain Syndrome,sports,knee,acute; subacute; chronic,18,88,0.03,6,28
+COND0190,Hip Labral Injury,sports,hip,acute; subacute; chronic,18,88,0.03,6,28
+COND0191,Throwing Shoulder Injury,sports,shoulder,acute; subacute; chronic,18,88,0.03,6,28
+COND0192,Medial Tibial Stress Syndrome,sports,ankle/foot,acute; subacute; chronic,18,88,0.03,6,28
+COND0193,Athletic Lumbar Stress Reaction,sports,spine,acute; subacute; chronic,18,88,0.03,6,28
+COND0194,Post-operative Knee Arthroscopy Rehabilitation,post-operative,knee,post-operative acute; post-operative subacute; return to function,18,88,1.0,6,28
+COND0195,Post-operative Hip Arthroscopy Rehabilitation,post-operative,hip,post-operative acute; post-operative subacute; return to function,18,88,1.0,6,28
+COND0196,Post-operative Rotator Cuff Repair Rehabilitation,post-operative,shoulder,post-operative acute; post-operative subacute; return to function,18,88,1.0,6,28
+COND0197,Post-operative Achilles Repair Rehabilitation,post-operative,ankle/foot,post-operative acute; post-operative subacute; return to function,18,88,1.0,6,28
+COND0198,Post-operative Lumbar Decompression Rehabilitation,post-operative,spine,post-operative acute; post-operative subacute; return to function,18,88,1.0,6,28
+COND0199,Guillain-Barre Syndrome Rehabilitation,neurological,neurological,acute; subacute; chronic,18,88,0.0,6,28
+COND0200,Motor Neuron Disease Supportive Rehabilitation,neurological,neurological,acute; subacute; chronic,18,88,0.0,6,28
+COND0201,Cerebellar Ataxia Rehabilitation,neurological,neurological,acute; subacute; chronic,18,88,0.0,6,28
+COND0202,Post-polio Syndrome Rehabilitation,neurological,neurological,acute; subacute; chronic,18,88,0.0,6,28
+COND0203,Vestibular Migraine with Neurological Balance Impairment,neurological,neurological,acute; subacute; chronic,18,88,0.0,6,28
+COND0204,Pulmonary Fibrosis Rehabilitation,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,18,88,0.0,6,28
+COND0205,Post-CABG Cardiac Rehabilitation,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,35,95,1.0,6,28
+COND0206,Post-lung Surgery Rehabilitation,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,18,95,1.0,6,28
+COND0207,Cystic Fibrosis Airway Clearance Rehabilitation,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,18,88,0.0,6,28
+COND0208,Pulmonary Hypertension Exercise Rehabilitation,cardiorespiratory,cardiorespiratory,acute; subacute; chronic,18,88,0.0,6,28
+COND0209,Postpartum Diastasis Recti Rehabilitation,women's health,pelvic health,acute; subacute; chronic,18,50,0.03,6,28
+COND0210,Pelvic Pain Syndrome,women's health,pelvic health,acute; subacute; chronic,18,88,0.03,6,28
+COND0211,Postpartum Return-to-Exercise Rehabilitation,women's health,pelvic health,acute; subacute; chronic,18,50,0.03,6,28
+COND0212,Endometriosis-associated Pelvic Pain Rehabilitation,women's health,pelvic health,acute; subacute; chronic,18,88,0.03,6,28
+COND0213,Paediatric Toe Walking Rehabilitation,paediatric,paediatric,acute; subacute; chronic,2,12,0.0,6,28
+COND0214,Paediatric Torticollis Rehabilitation,paediatric,paediatric,acute; subacute; chronic,0,5,0.0,6,28
+COND0215,Juvenile Idiopathic Arthritis Rehabilitation,paediatric,paediatric,acute; subacute; chronic,2,17,0.0,6,28
+COND0216,Paediatric Post-fracture Rehabilitation,paediatric,paediatric,acute; subacute; chronic,2,17,0.0,6,28
+COND0217,Sarcopenia Rehabilitation,geriatric,geriatric,acute; subacute; chronic,60,99,0.0,6,28
+COND0218,Dementia-associated Mobility Rehabilitation,geriatric,geriatric,acute; subacute; chronic,60,99,0.0,6,28
+COND0219,Osteoporotic Vertebral Fracture Rehabilitation,geriatric,geriatric,acute; subacute; chronic,60,99,0.0,6,28
+COND0220,Hospital-associated Deconditioning,geriatric,geriatric,acute; subacute; chronic,60,99,0.0,6,28
+COND0221,Ergonomic Neck Strain,occupational,spine,acute; subacute; chronic,18,88,0.0,6,28
+COND0222,Work-related Shoulder Tendinopathy,occupational,shoulder,acute; subacute; chronic,18,88,0.0,6,28
+COND0223,Repetitive Strain Injury,occupational,elbow/wrist/hand,acute; subacute; chronic,18,88,0.0,6,28
+COND0224,Manual Handling Back Injury,occupational,spine,acute; subacute; chronic,18,88,0.0,6,28
+COND0225,Chronic Primary Low Back Pain,chronic pain,spine,acute; subacute; chronic,18,88,0.0,6,28
+COND0226,Complex Regional Pain Syndrome Upper Limb,chronic pain,shoulder,acute; subacute; chronic,18,88,0.0,6,28
+COND0227,Complex Regional Pain Syndrome Lower Limb,chronic pain,ankle/foot,acute; subacute; chronic,18,88,0.0,6,28
+COND0228,Hypermobility Spectrum Disorder Rehabilitation,chronic pain,multiple regions,acute; subacute; chronic,18,88,0.0,6,28
+COND0229,Multifactorial Falls Risk Rehabilitation,balance and falls,geriatric,acute; subacute; chronic,60,99,0.0,6,28
+COND0230,Persistent Postural-Perceptual Dizziness,balance and falls,vestibular,acute; subacute; chronic,18,88,0.0,6,28
+COND0231,Sensory Ataxia Balance Rehabilitation,balance and falls,neurological,acute; subacute; chronic,18,95,0.0,6,28
+COND0232,Upper Limb Amputation Rehabilitation,amputee,amputee,acute; subacute; chronic,18,88,0.65,6,28
+COND0233,Bilateral Lower Limb Amputation Rehabilitation,amputee,amputee,acute; subacute; chronic,18,88,0.65,6,28
+COND0234,Hand Burn Rehabilitation,burns,burns,acute; subacute; chronic,18,88,0.15,6,28
+COND0235,Facial and Neck Burn Rehabilitation,burns,burns,acute; subacute; chronic,18,88,0.15,6,28
+COND0236,Post-ventilation Weaning Rehabilitation,ICU,cardiorespiratory,post-critical acute; post-critical subacute; community reintegration,18,88,0.0,6,28
+COND0237,Cervicogenic Dizziness,vestibular,vestibular,acute; subacute; chronic,18,88,0.0,6,28
+COND0238,Unilateral Vestibular Neuritis Rehabilitation,vestibular,vestibular,acute; subacute; chronic,18,88,0.0,6,28
+COND0239,Bilateral Vestibular Loss Rehabilitation,vestibular,vestibular,acute; subacute; chronic,18,88,0.0,6,28
+COND0240,Concussion-associated Vestibular Rehabilitation,vestibular,vestibular,acute; subacute; chronic,18,88,0.0,6,28

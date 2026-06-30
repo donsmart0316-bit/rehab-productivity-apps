@@ -30,6 +30,7 @@ BASE_DIR = Path(__file__).resolve().parent
 VECTORSTORE_PATH = BASE_DIR / "textbook_vectorstore"
 TEXTBOOK_FOLDER = BASE_DIR / "textbooks"
 DATASET_PATH = BASE_DIR / "rehab_recommender.xlsx"
+GLOBAL_DATASET_CSV_DIR = BASE_DIR.parent / "Global Physio Rehab Dataset" / "data" / "csv"
 
 st.set_page_config(page_title="Personalized Rehab Exercise Recommender", layout="wide")
 
@@ -443,9 +444,191 @@ st.markdown(
 
 # ---------------- LOAD DATA ----------------
 @st.cache_data(show_spinner=False)
+def load_global_physio_data():
+    required_files = {
+        "conditions": GLOBAL_DATASET_CSV_DIR / "condition_catalog.csv",
+        "exercises": GLOBAL_DATASET_CSV_DIR / "exercise_library.csv",
+        "mapping": GLOBAL_DATASET_CSV_DIR / "condition_exercise_map.csv",
+    }
+    if not all(path.exists() for path in required_files.values()):
+        missing = ", ".join(name for name, path in required_files.items() if not path.exists())
+        raise FileNotFoundError(f"Missing Global Physio Rehab Dataset files: {missing}")
+
+    conditions = pd.read_csv(required_files["conditions"]).fillna("")
+    exercises = pd.read_csv(required_files["exercises"]).fillna("")
+    mapping = pd.read_csv(required_files["mapping"]).fillna("")
+
+    conditions.columns = conditions.columns.str.strip().str.lower()
+    exercises.columns = exercises.columns.str.strip().str.lower()
+    mapping.columns = mapping.columns.str.strip().str.lower()
+
+    conditions = conditions.rename(
+        columns={
+            "name": "condition",
+            "category": "condition_category",
+            "body_region": "condition_body_region",
+        }
+    )
+    exercises = exercises.rename(
+        columns={
+            "body_region": "exercise_body_region",
+            "required_equipment": "equipment",
+            "video_url_placeholder": "video_url",
+            "progression_criteria": "progression_notes",
+        }
+    )
+    mapping = mapping.rename(
+        columns={
+            "stage_of_rehab": "rehab_stage",
+            "evidence_strength": "condition_evidence_strength",
+        }
+    )
+
+    df = mapping.merge(conditions, on="condition_id", how="left").merge(exercises, on="exercise_id", how="left")
+
+    def choose_text(row, *columns):
+        for column in columns:
+            value = str(row.get(column, "")).strip()
+            if value:
+                return value
+        return ""
+
+    def normalize_difficulty(value):
+        value = str(value).strip().lower()
+        if value in {"easy", "beginner", "low"}:
+            return "Beginner"
+        if value in {"moderate", "intermediate", "medium"}:
+            return "Intermediate"
+        if value in {"hard", "advanced", "high"}:
+            return "Advanced"
+        return value.title() if value else ""
+
+    def build_reps_sets(row):
+        pieces = []
+        sets = str(row.get("sets", "")).strip()
+        reps = str(row.get("repetitions", "")).strip()
+        duration = str(row.get("duration", "")).strip()
+        rest = str(row.get("rest_period", "")).strip()
+        frequency = str(row.get("frequency", "")).strip()
+        if sets and reps:
+            pieces.append(f"{sets} sets x {reps} reps")
+        elif reps:
+            pieces.append(f"{reps} reps")
+        if duration:
+            pieces.append(f"duration {duration}")
+        if rest:
+            pieces.append(f"rest {rest}")
+        if frequency:
+            pieces.append(f"frequency {frequency}")
+        return "; ".join(pieces)
+
+    def build_pain_suitability(row):
+        minimum = str(row.get("minimum_pain_score", "")).strip()
+        maximum = str(row.get("maximum_pain_score", "")).strip()
+        severity = str(row.get("severity_range", "")).strip()
+        details = []
+        if minimum or maximum:
+            details.append(f"pain {minimum or '0'}-{maximum or '10'}/10")
+        if severity:
+            details.append(severity.replace("-", ", "))
+        return "; ".join(details)
+
+    df["body_part"] = df.apply(lambda row: choose_text(row, "exercise_body_region", "condition_body_region"), axis=1)
+    df["difficulty"] = df["difficulty"].apply(normalize_difficulty) if "difficulty" in df else ""
+    df["equipment"] = df["equipment"].replace({"none": "None", "": ""}) if "equipment" in df else ""
+    df["reps_sets"] = df.apply(build_reps_sets, axis=1)
+    df["pain_severity_suitability"] = df.apply(build_pain_suitability, axis=1)
+    df["mobility_level_suitability"] = df.get("mobility_requirement", "")
+    df["recovery_goals"] = df.get("clinical_goal", "")
+    df["evidence_level"] = df.apply(lambda row: choose_text(row, "condition_evidence_strength", "evidence_level"), axis=1)
+    df["dataset_source"] = "Global Physio Rehab Dataset"
+
+    search_columns = [
+        "condition",
+        "condition_category",
+        "condition_body_region",
+        "exercise_body_region",
+        "exercise_name",
+        "target_muscles",
+        "joint_actions",
+        "movement_type",
+        "clinical_indications",
+        "clinical_goal",
+        "rationale_for_condition",
+    ]
+    df["condition_search_text"] = df.apply(
+        lambda row: " ".join(str(row.get(column, "")) for column in search_columns).lower(),
+        axis=1,
+    )
+
+    numeric_columns = [
+        "recommendation_priority",
+        "priority",
+        "progression_order",
+        "minimum_pain_score",
+        "maximum_pain_score",
+    ]
+    for column in numeric_columns:
+        if column in df:
+            df[column] = pd.to_numeric(df[column], errors="coerce")
+
+    expected_columns = [
+        "condition",
+        "exercise_name",
+        "body_part",
+        "difficulty",
+        "equipment",
+        "reps_sets",
+        "video_url",
+        "benefits",
+        "precautions",
+        "contraindications",
+        "progression_notes",
+        "rehab_stage",
+        "pain_severity_suitability",
+        "mobility_level_suitability",
+        "recovery_goals",
+        "starting_position",
+        "execution_instructions",
+        "clinical_rationale",
+        "rationale_for_condition",
+        "safety_warnings",
+        "safety_tips",
+        "stop_criteria",
+        "regression_criteria",
+        "regression_options",
+        "common_compensations",
+        "common_mistakes",
+        "expected_outcomes",
+        "evidence_level",
+        "condition_evidence_strength",
+        "contraindication_flag",
+        "contraindication_applies_if",
+        "recommendation_priority",
+        "priority",
+        "progression_order",
+        "minimum_pain_score",
+        "maximum_pain_score",
+        "condition_search_text",
+        "dataset_source",
+    ]
+    for column in expected_columns:
+        if column not in df:
+            df[column] = ""
+
+    return df[expected_columns].fillna("")
+
+
+@st.cache_data(show_spinner=False)
 def load_core_data():
+    try:
+        return load_global_physio_data()
+    except Exception as exc:
+        st.warning(f"Global Physio Rehab Dataset unavailable, using legacy Excel dataset. Details: {exc}")
+
     df = pd.read_excel(DATASET_PATH)
     df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
+    df["dataset_source"] = "Legacy Excel Dataset"
     return df.fillna("")
 
 
@@ -457,6 +640,11 @@ unique_exercises = (
     if "exercise_name" in core_df
     else len(core_df)
 )
+dataset_source = (
+    core_df["dataset_source"].replace("", pd.NA).dropna().iloc[0]
+    if "dataset_source" in core_df and not core_df["dataset_source"].replace("", pd.NA).dropna().empty
+    else "Structured dataset"
+)
 vectorstore_ready = (VECTORSTORE_PATH / "index.faiss").exists() and (VECTORSTORE_PATH / "index.pkl").exists()
 
 st.markdown(
@@ -465,7 +653,7 @@ st.markdown(
     <div class="metric-card"><span>Exercise library</span><b>{unique_exercises}</b><p>Structured options ready for matching</p></div>
     <div class="metric-card"><span>Condition coverage</span><b>{unique_conditions}</b><p>Profiles available in the dataset</p></div>
     <div class="metric-card"><span>Evidence retrieval</span><b>{"Ready" if vectorstore_ready else "Setup"}</b><p>Textbook vectorstore status</p></div>
-    <div class="metric-card"><span>Output</span><b>PDF</b><p>Home exercise prescription export</p></div>
+    <div class="metric-card"><span>Dataset</span><b>{escape(dataset_source.split()[0])}</b><p>{escape(dataset_source)} active</p></div>
 </div>
 """,
     unsafe_allow_html=True,
@@ -1059,16 +1247,36 @@ def screen_red_flags(profile_data):
 
 def match_condition_rows(condition_text):
     condition_text = condition_text.strip().lower()
-    return core_df[core_df["condition"].str.lower().str.contains(re.escape(condition_text), na=False)]
+    if not condition_text:
+        return core_df.iloc[0:0]
+    search_column = "condition_search_text" if "condition_search_text" in core_df else "condition"
+    return core_df[core_df[search_column].str.lower().str.contains(re.escape(condition_text), na=False)]
 
 
 def rank_dataset_candidates(rows, profile_data, limit=8):
     candidates = rows.copy()
 
+    if candidates.empty:
+        return candidates
+
+    if {"minimum_pain_score", "maximum_pain_score"}.issubset(candidates.columns):
+        pain = profile_data["pain_level"]
+        within_pain = (
+            candidates["minimum_pain_score"].eq("")
+            | candidates["minimum_pain_score"].isna()
+            | (pd.to_numeric(candidates["minimum_pain_score"], errors="coerce").fillna(0) <= pain)
+        ) & (
+            candidates["maximum_pain_score"].eq("")
+            | candidates["maximum_pain_score"].isna()
+            | (pd.to_numeric(candidates["maximum_pain_score"], errors="coerce").fillna(10) >= pain)
+        )
+        if within_pain.any():
+            candidates = candidates[within_pain]
+
     if profile_data["pain_level"] >= 7 and "difficulty" in candidates:
-        beginner = candidates["difficulty"].str.contains("Beginner", case=False, na=False)
-        if beginner.any():
-            candidates = candidates[beginner]
+        gentle = candidates["difficulty"].str.contains("Beginner|Easy", case=False, na=False)
+        if gentle.any():
+            candidates = candidates[gentle]
 
     if "rehab_stage" in candidates:
         if profile_data["time_since_injury"].startswith("Acute"):
@@ -1076,22 +1284,56 @@ def rank_dataset_candidates(rows, profile_data, limit=8):
         elif profile_data["time_since_injury"].startswith("Subacute"):
             stage_match = candidates["rehab_stage"].eq("") | candidates["rehab_stage"].str.contains("subacute", case=False, na=False)
         else:
-            stage_match = candidates["rehab_stage"].eq("") | candidates["rehab_stage"].str.contains("chronic|strengthening|advanced", case=False, na=False)
+            stage_match = candidates["rehab_stage"].eq("") | candidates["rehab_stage"].str.contains("chronic|maintenance|strengthening|advanced", case=False, na=False)
         if stage_match.any():
             candidates = candidates[stage_match]
 
-    if "equipment" in candidates and profile_data["equipment"] and "None" not in profile_data["equipment"]:
-        equipment_terms = "|".join(re.escape(item) for item in profile_data["equipment"])
-        no_equipment = candidates["equipment"].eq("")
-        matching_equipment = candidates["equipment"].str.contains(equipment_terms, case=False, na=False)
-        if (no_equipment | matching_equipment).any():
-            candidates = candidates[no_equipment | matching_equipment]
+    if "mobility_level_suitability" in candidates:
+        if profile_data["dizziness_balance"] == "Frequent" or profile_data["daily_activity"] == "Sedentary":
+            mobility_match = candidates["mobility_level_suitability"].eq("") | candidates["mobility_level_suitability"].str.contains("low|moderate", case=False, na=False)
+            if mobility_match.any():
+                candidates = candidates[mobility_match]
 
-    difficulty_order = {"Beginner": 0, "Intermediate": 1, "Advanced": 2}
+    if "equipment" in candidates and profile_data["equipment"]:
+        selected_equipment = profile_data["equipment"]
+        no_equipment = candidates["equipment"].eq("") | candidates["equipment"].str.contains("none|bodyweight|no equipment", case=False, na=False)
+        if "None" in selected_equipment:
+            if no_equipment.any():
+                candidates = candidates[no_equipment]
+        else:
+            equipment_terms = "|".join(re.escape(item) for item in selected_equipment)
+            matching_equipment = candidates["equipment"].str.contains(equipment_terms, case=False, na=False)
+            if (no_equipment | matching_equipment).any():
+                candidates = candidates[no_equipment | matching_equipment]
+
+    difficulty_order = {"Beginner": 0, "Easy": 0, "Intermediate": 1, "Moderate": 1, "Advanced": 2, "Hard": 2}
     if "difficulty" in candidates:
         candidates = candidates.assign(
             _difficulty_rank=candidates["difficulty"].map(difficulty_order).fillna(3)
-        ).sort_values(["_difficulty_rank", "exercise_name"])
+        )
+
+    sort_columns = []
+    ascending = []
+    if "priority" in candidates:
+        candidates["_priority_rank"] = pd.to_numeric(candidates["priority"], errors="coerce").fillna(0)
+        sort_columns.append("_priority_rank")
+        ascending.append(False)
+    elif "recommendation_priority" in candidates:
+        candidates["_priority_rank"] = pd.to_numeric(candidates["recommendation_priority"], errors="coerce").fillna(0)
+        sort_columns.append("_priority_rank")
+        ascending.append(False)
+    if "progression_order" in candidates:
+        candidates["_progression_rank"] = pd.to_numeric(candidates["progression_order"], errors="coerce").fillna(999)
+        sort_columns.append("_progression_rank")
+        ascending.append(True)
+    if "_difficulty_rank" in candidates:
+        sort_columns.append("_difficulty_rank")
+        ascending.append(True)
+    if "exercise_name" in candidates:
+        sort_columns.append("exercise_name")
+        ascending.append(True)
+    if sort_columns:
+        candidates = candidates.sort_values(sort_columns, ascending=ascending)
 
     return candidates.head(limit)
 
@@ -1111,14 +1353,27 @@ def format_dataset_exercises(rows):
         "equipment",
         "reps_sets",
         "video_url",
+        "starting_position",
+        "execution_instructions",
         "benefits",
+        "clinical_rationale",
+        "rationale_for_condition",
         "precautions",
         "contraindications",
+        "contraindication_applies_if",
+        "safety_warnings",
+        "safety_tips",
+        "stop_criteria",
         "progression_notes",
+        "regression_criteria",
+        "regression_options",
+        "common_compensations",
+        "common_mistakes",
         "rehab_stage",
         "pain_severity_suitability",
         "mobility_level_suitability",
         "recovery_goals",
+        "evidence_level",
     ]
     lines = []
     for _, row in rows.iterrows():
@@ -1188,23 +1443,50 @@ def build_fallback_plan(profile_data, rows, cautions, reason=None):
         contraindications = str(row.get("contraindications", "")).strip()
         equipment_needed = str(row.get("equipment", "")).strip() or "No equipment"
         progression = str(row.get("progression_notes", "Progress only if symptoms remain settled.")).strip()
+        start_position = str(row.get("starting_position", "")).strip()
+        instructions = str(row.get("execution_instructions", "")).strip()
+        rationale = str(row.get("clinical_rationale", "")).strip() or str(row.get("rationale_for_condition", "")).strip()
+        stop_criteria = str(row.get("stop_criteria", "")).strip() or str(row.get("safety_warnings", "")).strip()
+        regression = str(row.get("regression_criteria", "")).strip()
+        compensations = str(row.get("common_compensations", "")).strip()
+        evidence_level = str(row.get("evidence_level", "")).strip()
+
+        how_to = []
+        if start_position:
+            how_to.append(f"  - Set up: {start_position}")
+        if instructions:
+            how_to.append(f"  - Movement: {instructions}")
+        if not how_to:
+            how_to = [
+                "  - Step 1: Set up in a comfortable, supported position.",
+                "  - Step 2: Perform the movement slowly and within a comfortable range.",
+                "  - Step 3: Return to the starting position with control.",
+            ]
 
         lines.extend(
             [
                 f"{index}. {name}",
                 f"- Purpose: {benefits}",
                 "- How to do it:",
-                "  - Step 1: Set up in a comfortable, supported position.",
-                "  - Step 2: Perform the movement slowly and within a comfortable range.",
-                "  - Step 3: Return to the starting position with control.",
+                *how_to,
                 f"- Dosage: {reps}",
                 f"- Frequency: Start {frequency} unless symptoms increase.",
                 f"- Equipment: {equipment_needed}",
                 f"- Stop or modify if: {precautions}",
             ]
         )
+        if rationale:
+            lines.append(f"- Clinical rationale: {rationale}")
         if contraindications:
             lines.append(f"- Avoid or get clinician review if present: {contraindications}")
+        if stop_criteria:
+            lines.append(f"- Stop criteria: {stop_criteria}")
+        if regression:
+            lines.append(f"- Regression: {regression}")
+        if compensations:
+            lines.append(f"- Watch for: {compensations}")
+        if evidence_level:
+            lines.append(f"- Evidence level: {evidence_level}")
         lines.append(f"- Progression: {progression}")
 
     lines.extend(
