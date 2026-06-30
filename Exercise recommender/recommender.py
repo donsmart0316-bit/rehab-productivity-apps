@@ -1386,8 +1386,29 @@ def format_dataset_exercises(rows):
     return "\n".join(lines)
 
 
+def unique_exercise_rows(rows, limit=4):
+    if rows.empty or "exercise_name" not in rows:
+        return rows.head(limit)
+    normalized_names = rows["exercise_name"].astype(str).str.strip().str.lower()
+    unique_rows = rows[~normalized_names.duplicated()].copy()
+    return unique_rows.head(limit)
+
+
+def append_physio_followup(plan_text):
+    followup = """
+
+Physiotherapist Follow-Up:
+- This plan is educational support only and should not replace assessment by a qualified physiotherapist.
+- Please visit a physiotherapist for an individualized examination, especially if pain persists, worsens, spreads, or affects walking, sleep, work, or daily function.
+- If you want guided care, you can contact the therapist below for review, progression, and safer exercise modification.
+"""
+    if re.search(r"^\s*Physiotherapist Follow-Up:\s*$", plan_text, re.I | re.M):
+        return plan_text
+    return plan_text.rstrip() + followup
+
+
 def build_fallback_plan(profile_data, rows, cautions, reason=None):
-    selected = rows.head(5)
+    selected = unique_exercise_rows(rows, limit=4)
     personalization = build_personalization_brief(profile_data)
     pain_limit = "2-3/10" if profile_data["pain_level"] >= 7 else "3-4/10"
     frequency = "2-3 days per week" if profile_data["pain_level"] >= 7 or profile_data["time_since_injury"].startswith("Acute") else "3-4 days per week"
@@ -1431,6 +1452,10 @@ def build_fallback_plan(profile_data, rows, cautions, reason=None):
                 "Week 5+: Build activity gradually with professional guidance.",
                 "\nWhen To Seek Medical Care:",
                 "Seek medical care for severe or worsening symptoms, neurological signs, chest pain, shortness of breath, swelling, fever, or uncertainty about exercise safety.",
+                "\nPhysiotherapist Follow-Up:",
+                "- This plan is educational support only and should not replace assessment by a qualified physiotherapist.",
+                "- Please visit a physiotherapist for an individualized examination and safe progression.",
+                "- If you want guided care, you can contact the therapist below for review and exercise modification.",
             ]
         )
         return "\n".join(lines)
@@ -1502,6 +1527,10 @@ def build_fallback_plan(profile_data, rows, cautions, reason=None):
             "Week 5+: Progress resistance, balance challenge, or function gradually, one variable at a time.",
             "\nWhen To Seek Medical Care:",
             "Seek medical care for severe or worsening symptoms, neurological signs, chest pain, shortness of breath, unexplained swelling, fever, or if you are unsure whether exercise is safe.",
+            "\nPhysiotherapist Follow-Up:",
+            "- This plan is educational support only and should not replace assessment by a qualified physiotherapist.",
+            "- Please visit a physiotherapist for an individualized examination, especially if pain persists, worsens, spreads, or affects walking, sleep, work, or daily function.",
+            "- If you want guided care, you can contact the therapist below for review, progression, and safer exercise modification.",
         ]
     )
     return "\n".join(lines)
@@ -1589,7 +1618,10 @@ def get_video_url(exercise_name, video_lookup, condition_text):
 
 def parse_exercise_cards(plan_text):
     exercise_start = re.compile(r"^\s*(\d+)[\.\)]\s+(.+?)\s*$")
-    section_start = re.compile(r"^\s*(Consultant Summary|Exercise Prescription|Equipment Modifications|Weekly Progression|When To Seek Medical Care):\s*$", re.I)
+    section_start = re.compile(
+        r"^\s*(Consultant Summary|Why This Fits Your Profile|Exercise Prescription|Equipment Modifications|Equipment-Based Modifications|Weekly Progression|When To Seek Medical Care|Physiotherapist Follow-Up):\s*$",
+        re.I,
+    )
     cards = []
     current = None
 
@@ -1613,6 +1645,15 @@ def parse_exercise_cards(plan_text):
     if current:
         cards.append(current)
     return cards
+
+
+def extract_section(plan_text, section_name):
+    pattern = re.compile(
+        rf"^\s*{re.escape(section_name)}:\s*$([\s\S]*?)(?=^\s*[A-Z][A-Za-z\s]+:\s*$|\Z)",
+        re.I | re.M,
+    )
+    match = pattern.search(plan_text)
+    return match.group(1).strip() if match else ""
 
 
 def render_exercise_cards(plan_text, video_lookup, condition_text):
@@ -1646,6 +1687,19 @@ def render_exercise_cards(plan_text, video_lookup, condition_text):
             unsafe_allow_html=True,
         )
 
+    followup = extract_section(plan_text, "Physiotherapist Follow-Up")
+    if followup:
+        st.markdown(
+            f"""
+<div class="section-shell">
+    <div class="section-label">Next step</div>
+    <h2 class="section-title">Physiotherapist follow-up</h2>
+    <p class="section-copy">{escape(followup).replace(chr(10), "<br>")}</p>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
 
 # ====================== CLINICAL VETTING ENGINE ======================
 def clinical_vet(profile, personalization_brief, dataset_ex, textbook_context, web_context, cautions, mode):
@@ -1654,14 +1708,14 @@ def clinical_vet(profile, personalization_brief, dataset_ex, textbook_context, w
 Mode: Deep evidence.
 - Provide a more detailed plan with explicit clinical reasoning for each exercise.
 - Include stage-specific progression criteria, regression options, and monitoring rules.
-- Use 4-5 exercises if safe and relevant.
+- Recommend exactly 4 different exercises when at least 4 safe candidate exercises are available.
 """
         max_tokens = 1450
     else:
         mode_instruction = """
 Mode: Balanced evidence.
 - Provide a concise, practical plan.
-- Include the strongest 3-4 exercises only.
+- Recommend exactly 4 different exercises when at least 4 safe candidate exercises are available.
 """
         max_tokens = 950
 
@@ -1695,6 +1749,8 @@ Rules:
 - Use every patient profile item when tailoring the prescription: age, gender, BMI, condition, duration, onset stage, pain level, symptoms, main goal, other goals, activity level, surgery history, blood pressure, dizziness/balance, diabetes, equipment, and previous exercise response.
 - The Consultant Summary must explicitly mention the most important profile factors that changed the plan.
 - Prefer structured dataset exercises when they match the condition and profile.
+- The Exercise Prescription must contain four different exercise names when four safe candidate exercises are available.
+- Never repeat the same exercise name, even if the dataset candidate appears more than once.
 - Use textbook context to refine exercise choice, dosage, precautions, and progression whenever it is relevant to the submitted condition or related body region.
 - If textbook context is not condition-specific enough, say the prescription is based on the patient's profile, dataset match, safety rules, and general physiotherapy principles. Do not invent textbook support.
 - Use current web context only for up-to-date supporting guidance, precautions, and terminology. Do not let web snippets override red flags, contraindications, textbook context, dataset contraindications, or patient-specific safety constraints.
@@ -1739,6 +1795,10 @@ Weekly Progression:
 
 When To Seek Medical Care:
 - Bullet points only.
+
+Physiotherapist Follow-Up:
+- Advise the patient to visit a qualified physiotherapist for individualized assessment and safe progression.
+- Add that if they want guided care, they can contact the therapist below for review, progression, and exercise modification.
 """
     return cached_llm_response(prompt, max_tokens=max_tokens)
 
@@ -1770,11 +1830,12 @@ if st.button("Generate Personalized Plan", type="primary", use_container_width=T
         try:
             matched_rows = match_condition_rows(condition)
 
-            candidate_limit = 12 if generation_mode == "Deep evidence" else 8
+            candidate_limit = 80
             if matched_rows.empty:
                 candidate_rows = matched_rows
             else:
                 candidate_rows = rank_dataset_candidates(matched_rows, profile_data, limit=candidate_limit)
+                candidate_rows = unique_exercise_rows(candidate_rows, limit=4)
 
             combined_goals = f"{goal}. {other_goals.strip()}" if other_goals.strip() else goal
             rag_query = build_rag_query(condition, combined_goals, specific_symptoms)
@@ -1811,6 +1872,7 @@ if st.button("Generate Personalized Plan", type="primary", use_container_width=T
                     safety_cautions,
                     generation_mode,
                 )
+                final_plan = append_physio_followup(final_plan)
             except Exception as llm_error:
                 groq_issue = describe_groq_error(llm_error)
                 st.warning(groq_issue)
